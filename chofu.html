@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>スケジュール管理（調布 72h）</title>
+<title>スケジュール管理（調布 72h） v1b</title>
 <style>
   :root{
     --bg:#0f1115; --card:#171a21; --panel:#1d2130; --text:#e9edf1; --muted:#a8b0bb;
@@ -18,6 +18,7 @@
          border-bottom:1px solid #23293a; backdrop-filter: blur(6px);}
   .toolbar{display:flex; gap:.5rem; align-items:center; padding:.75rem 1rem; flex-wrap:wrap;}
   .title{font-weight:700; letter-spacing:.02em; margin-right:auto;}
+  .ver{margin-left:auto; font-weight:700; background:#253457; border:1px solid #38507e; color:#cfe0ff; padding:.25rem .5rem; border-radius:.5rem;}
   .pill{background:var(--panel); border:1px solid #2a3044; color:var(--text); padding:.55rem .8rem;
         border-radius:.6rem; font-size:.95rem; cursor:pointer; user-select:none;}
   .pill:active{transform: translateY(1px)}
@@ -31,7 +32,7 @@
   .wrap{padding:1rem;}
   .board{background:var(--card); border:1px solid #20263a; border-radius:.8rem; overflow:hidden; position:relative;}
 
-  /* 上部：横スクロールの時間スケール（15分目盛りを追加） */
+  /* 上部：横スクロールの時間スケール（15分目盛り） */
   .rightHeader{background:#141824; border-bottom:1px solid #20263a; position:sticky; top: 3.4rem; z-index:5; overflow:auto;}
   .scaleInner{
     position:relative; height:40px; display:flex;
@@ -65,23 +66,28 @@
     height:34px;
     overflow-x:auto;
     overflow-y:hidden;
-    touch-action: pan-x;             /* 横パンはここ、縦パンは親へ通す */
+    touch-action: pan-x;             /* 横パンはここ、縦パンは親へ通す（iOSだとJS補助も入れる） */
     -webkit-overflow-scrolling: touch;
   }
   .timeline::-webkit-scrollbar{height:8px}
+
   .timelineInner{
     position:relative; height:34px;
-    background:
-      repeating-linear-gradient(to right, rgba(255,255,255,.08) 0 1px, transparent 1px 15px), /* 15分の細線 */
-      repeating-linear-gradient(to right, #151a26 0 29px, #1e2433 29px 30px);                 /* 30分シェード */
+    /* 背景は30分シェードのみ（15分グリッドは前面の overlay で描画） */
+    background: repeating-linear-gradient(to right, #151a26 0 29px, #1e2433 29px 30px);
   }
   .slot{width:30px; height:16px; border-radius:3px; display:inline-block; vertical-align:middle;}
   .slot.free{background:var(--free)} .slot.busy{background:var(--busy)} .slot.buffer{background:var(--buffer)}
   .nowLine{position:absolute; top:0; bottom:0; width:2px; background:var(--now); pointer-events:none; opacity:.9;}
+  /* 前面の15分グリッド */
+  .gridOverlay{
+    position:absolute; inset:0; pointer-events:none;
+    background: repeating-linear-gradient(to right, rgba(255,255,255,.10) 0 1px, transparent 1px 15px);
+  }
 
   .empty{padding:2rem; text-align:center; color:var(--muted); border-top:1px dashed #2a3044;}
 
-  dialog{border:none; border-radius:.8rem; background:#121622; color:var(--text); width:min(520px, 92vw);
+  dialog{border:none; border-radius:.8rem; background:#121622; color:#text; width:min(520px, 92vw);
          box-shadow:0 20px 50px rgba(0,0,0,.55), 0 0 0 1px #1f2636 inset;}
   dialog::backdrop{background: rgba(0,0,0,.55)}
   .dlgHead{padding:1rem 1.2rem; border-bottom:1px solid #232a3d; font-weight:700}
@@ -89,29 +95,17 @@
   .dlgRow{display:grid; gap:.3rem}
   .dlgRow.inline{grid-template-columns:1fr 1fr; gap:.8rem}
   input[type="text"], input[type="datetime-local"], select{
-    background:#0f1320; color:var(--text); border:1px solid #2b3248; border-radius:.5rem; padding:.6rem .7rem; font-size:1rem;}
+    background:#0f1320; color:#e9edf1; border:1px solid #2b3248; border-radius:.5rem; padding:.6rem .7rem; font-size:1rem;}
   .dlgFoot{padding:1rem 1.2rem; border-top:1px solid #232a3d; display:flex; gap:.6rem; justify-content:flex-end}
   .muted{color:var(--muted); font-size:.88rem}
 
-  /* トップへ戻るボタン（縦スクロール補助） */
+  /* トップへ戻るボタン */
   .toTop{
-    position: sticky;
-    bottom: 1rem;
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: .4rem;
-    background: #232c45;
-    border: 1px solid #2f3a5a;
-    color: #cfe0ff;
-    padding: .45rem .7rem;
-    border-radius: .6rem;
-    cursor: pointer;
+    position: sticky; bottom: 1rem; margin-left: auto; display: inline-flex; align-items: center; gap: .4rem;
+    background: #232c45; border: 1px solid #2f3a5a; color: #cfe0ff; padding: .45rem .7rem; border-radius: .6rem; cursor: pointer;
   }
 
-  @media (max-width:480px){
-    .plate{font-size:.85rem}
-  }
+  @media (max-width:480px){ .plate{font-size:.85rem} }
 </style>
 </head>
 <body>
@@ -124,6 +118,7 @@
       <span><i class="dot buffer"></i>ブランク</span>
       <span><i class="dot now"></i>現在</span>
     </div>
+    <div class="ver">v1b</div>
   </div>
   <div class="toolbar" style="border-top:1px solid #20263a">
     <button class="pill" id="addCarBtn">車両追加</button>
@@ -231,6 +226,7 @@
 
 <script>
 (() => {
+  const VERSION='v1b';
   const STORAGE_KEY = 'sched-chofu-v1';
   const SLOT_MIN = 30;                 // 30分刻み
   const HORIZON_H = 72;                // 72時間
@@ -325,6 +321,10 @@
         inner.appendChild(slot);
       }
       const now = document.createElement('div'); now.className='nowLine'; inner.appendChild(now);
+
+      // 前面グリッド
+      const grid = document.createElement('div'); grid.className='gridOverlay'; inner.appendChild(grid);
+
       tl.appendChild(inner);
 
       item.appendChild(info);
@@ -333,6 +333,9 @@
 
       // 色塗り
       paintTimeline(inner, car.reservations);
+
+      // タイムラインのタッチ挙動（縦は親に、横は自身に）
+      enableSmartPan(tl);
     });
 
     setupScrollSync();
@@ -389,6 +392,40 @@
 
     header.onscroll = ()=> syncAll(header);
     timelines.forEach(el=> el.onscroll = ()=> syncAll(el));
+  }
+
+  // ---- タイムラインのスマートパン：縦＝親リスト、横＝自分 ----
+  function enableSmartPan(timelineEl){
+    const parentList = document.getElementById('list');
+    let sx=0, sy=0, sl=0, st=0, isActive=false, mode=null; // mode: 'x' or 'y'
+
+    const onTouchStart = (e)=>{
+      const t = e.touches[0];
+      sx = t.clientX; sy = t.clientY;
+      sl = timelineEl.scrollLeft; st = parentList.scrollTop;
+      isActive = true; mode = null;
+    };
+    const onTouchMove = (e)=>{
+      if(!isActive) return;
+      const t = e.touches[0];
+      const dx = t.clientX - sx;
+      const dy = t.clientY - sy;
+      if(mode===null){
+        mode = (Math.abs(dx) > Math.abs(dy)) ? 'x' : 'y';
+      }
+      if(mode==='x'){
+        timelineEl.scrollLeft = sl - dx;
+      }else{
+        parentList.scrollTop = st - dy;
+      }
+      e.preventDefault(); // iOSでのネイティブスクロールを抑止し、意図通りに動かす
+    };
+    const onTouchEnd = ()=>{ isActive=false; };
+
+    timelineEl.addEventListener('touchstart', onTouchStart, {passive:false});
+    timelineEl.addEventListener('touchmove', onTouchMove, {passive:false});
+    timelineEl.addEventListener('touchend', onTouchEnd, {passive:false});
+    timelineEl.addEventListener('touchcancel', onTouchEnd, {passive:false});
   }
 
   // ---- セレクト更新 ----
