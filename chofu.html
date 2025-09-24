@@ -6,254 +6,188 @@
 <title>スケジュール管理（調布 72h）</title>
 <style>
   :root{
-    --bg:#0f1115;
-    --card:#171a21;
-    --panel:#1d2130;
-    --text:#e9edf1;
-    --muted:#a8b0bb;
-    --accent:#ff8a00; /* 巡回アプリ系のオレンジ想定 */
-    --free:#2a73ff;   /* 青：作業可 */
-    --busy:#ff5b93;   /* ピンク：予約中 */
-    --buffer:#8b93a6; /* グレー：ブランク */
-    --grid:#2a2f3d;
-    --now:#ffd54a;
-    --rowHover:#242a3a;
-    --selected:#2b3550;
+    --bg:#0f1115; --card:#171a21; --panel:#1d2130; --text:#e9edf1; --muted:#a8b0bb;
+    --accent:#ff8a00; --free:#2a73ff; --busy:#ff5b93; --buffer:#8b93a6; --grid:#2a2f3d; --now:#ffd54a;
+    --rowHover:#242a3a; --selected:#2b3550;
   }
   html,body{height:100%}
-  body{
-    margin:0; background:var(--bg); color:var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-  }
-  header{
-    position:sticky; top:0; z-index:10;
-    background:linear-gradient(0deg, rgba(15,17,21,0.85), rgba(15,17,21,0.95));
-    border-bottom:1px solid #23293a;
-    backdrop-filter: blur(6px);
-  }
-  .toolbar{
-    display:flex; gap:.5rem; align-items:center; padding:.75rem 1rem; flex-wrap:wrap;
-  }
-  .title{
-    font-weight:700; letter-spacing:.02em; margin-right:auto;
-  }
-  .pill{
-    background:var(--panel); border:1px solid #2a3044; color:var(--text);
-    padding:.55rem .8rem; border-radius:.6rem; font-size:.95rem; cursor:pointer;
-    user-select:none;
-  }
+  body{margin:0; background:var(--bg); color:var(--text);
+       font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic", Arial, sans-serif;}
+
+  header{position:sticky; top:0; z-index:10; background:linear-gradient(0deg, rgba(15,17,21,.85), rgba(15,17,21,.95));
+         border-bottom:1px solid #23293a; backdrop-filter: blur(6px);}
+  .toolbar{display:flex; gap:.5rem; align-items:center; padding:.75rem 1rem; flex-wrap:wrap;}
+  .title{font-weight:700; letter-spacing:.02em; margin-right:auto;}
+  .pill{background:var(--panel); border:1px solid #2a3044; color:var(--text); padding:.55rem .8rem;
+        border-radius:.6rem; font-size:.95rem; cursor:pointer; user-select:none;}
   .pill:active{transform: translateY(1px)}
-  .pill.primary{ background: var(--accent); border-color: #ff9d2a; color:#111}
-  .pill.warn{ background:#d84c4c; border-color:#e36c6c; color:#fff}
-  .legend{ display:flex; gap:.75rem; align-items:center; font-size:.9rem; color:var(--muted)}
+  .pill.primary{background:var(--accent); border-color:#ff9d2a; color:#111}
+  .pill.warn{background:#d84c4c; border-color:#e36c6c; color:#fff}
+  .legend{display:flex; gap:.75rem; align-items:center; font-size:.9rem; color:var(--muted)}
   .legend span{display:inline-flex; align-items:center; gap:.35rem}
-  .dot{ width:14px; height:10px; border-radius:2px; display:inline-block}
+  .dot{width:14px; height:10px; border-radius:2px; display:inline-block}
   .dot.free{background:var(--free)} .dot.busy{background:var(--busy)} .dot.buffer{background:var(--buffer)} .dot.now{background:var(--now)}
-  .wrap{ padding:1rem; }
-  .board{
-    background:var(--card); border:1px solid #20263a; border-radius:.8rem; overflow:hidden;
-  }
 
-  /* グリッド：左の固定列 + 右のスクロール領域 */
-  .grid{
-    display:grid; grid-template-columns: 320px 1fr; /* 左固定幅 */
-    width:100%;
-  }
-  .leftHeader, .rightHeader{
-    background:#141824; border-bottom:1px solid #20263a; position:sticky; top: 3.4rem; z-index:5;
-  }
-  .leftHeader{ padding:.65rem .9rem; }
-  .rightHeader{ overflow:hidden; }
-  .hourScale{
-    position:relative; overflow:auto;
-  }
-  .scaleInner{
-    position:relative; height:40px; display:flex;
-    background: repeating-linear-gradient(to right, transparent 0 59px, var(--grid) 59px 60px);
-  }
-  .scaleLabel{
-    position:absolute; top:4px; transform:translateX(-50%);
-    font-size:.8rem; color:var(--muted); white-space:nowrap;
-  }
-  .scaleDay{
-    position:absolute; top:22px; transform:translateX(-50%);
-    font-size:.75rem; color:#90a0b3;
-  }
+  .wrap{padding:1rem;}
+  .board{background:var(--card); border:1px solid #20263a; border-radius:.8rem; overflow:hidden;}
 
-  .leftCol{
-    overflow:auto; max-height: calc(100vh - 210px);
-    border-right:1px solid #20263a;
-  }
-  .rightCol{
-    overflow:auto; max-height: calc(100vh - 210px);
-  }
-  .row{
-    display:flex; align-items:center; gap:.5rem; padding:.6rem .9rem; border-bottom:1px solid #20263a; cursor:pointer;
-  }
-  .row:hover{ background:var(--rowHover) }
-  .row.selected{ background:var(--selected) }
-  .station{ font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width: 210px;}
-  .plate{ font-size:.9rem; color:#c6cfdb; white-space:nowrap }
-  .tag{ font-size:.72rem; color:#9bb5ff; background:#26345b; border:1px solid #3a4c7e; padding:.12rem .4rem; border-radius:.4rem; margin-left:.4rem }
-  .timeline{
-    width: 4320px; /* 144 slots x 30px = 4320px */
-    position:relative; height:46px;
-    display:flex; align-items:center;
-    background: repeating-linear-gradient(to right, #151a26 0 29px, #1e2433 29px 30px);
-  }
-  .slot{
-    width:30px; height:22px; border-radius:3px;
-    margin:0 0; /* 背景で縦罫を作っているのでslot同士は隙間なし */
-  }
-  .slot.free { background:var(--free) }
-  .slot.busy { background:var(--busy) }
-  .slot.buffer{ background:var(--buffer) }
-  .nowLine{
-    position:absolute; top:0; bottom:0; width:2px; background:var(--now); pointer-events:none; opacity:.9;
-  }
+  /* 上部：横スクロールの時間スケール */
+  .rightHeader{background:#141824; border-bottom:1px solid #20263a; position:sticky; top: 3.4rem; z-index:5; overflow:auto;}
+  .scaleInner{position:relative; height:40px; display:flex;
+              background: repeating-linear-gradient(to right, transparent 0 59px, var(--grid) 59px 60px);}
+  .scaleLabel{position:absolute; top:4px; transform:translateX(-50%); font-size:.8rem; color:var(--muted); white-space:nowrap;}
+  .scaleDay{position:absolute; top:22px; transform:translateX(-50%); font-size:.75rem; color:#90a0b3;}
 
-  .empty{
-    padding:2rem; text-align:center; color:var(--muted);
-    border-top:1px dashed #2a3044;
-  }
+  /* リスト本体（縦スクロール） */
+  .list{max-height: calc(100vh - 210px); overflow:auto; -webkit-overflow-scrolling:touch;}
 
-  /* モーダル */
-  dialog{
-    border:none; border-radius:.8rem; background:#121622; color:var(--text);
-    width:min(520px, 92vw);
-    box-shadow: 0 20px 50px rgba(0,0,0,.55), 0 0 0 1px #1f2636 inset;
-  }
-  dialog::backdrop{ background: rgba(0,0,0,.55) }
-  .dlgHead{ padding:1rem 1.2rem; border-bottom:1px solid #232a3d; font-weight:700 }
-  .dlgBody{ padding:1rem 1.2rem; display:grid; gap:.8rem }
-  .dlgRow{ display:grid; gap:.3rem }
-  .dlgRow.inline{ grid-template-columns: 1fr 1fr; gap:.8rem }
+  /* 1車両＝2段構成（上：情報、下：タイムライン） */
+  .carItem{padding:.55rem .9rem .7rem; border-bottom:1px solid #20263a;}
+  .carItem:hover{background:var(--rowHover)}
+  .carItem.selected{background:var(--selected)}
+  .info{display:flex; align-items:center; gap:.6rem; white-space:nowrap; overflow:hidden;}
+  .station{font-weight:600; overflow:hidden; text-overflow:ellipsis;}
+  .plate{font-size:.9rem; color:#c6cfdb; margin-left:auto; padding-left:.6rem;}
+  .tag{font-size:.72rem; color:#9bb5ff; background:#26345b; border:1px solid #3a4c7e; padding:.12rem .4rem; border-radius:.4rem; margin-left:.4rem}
+
+  .timeline{position:relative; margin-top:.4rem; height:34px; overflow:auto;} /* 下段は横スクロール */
+  .timeline::-webkit-scrollbar{height:8px}
+  .timelineInner{position:relative; height:34px;
+                 background: repeating-linear-gradient(to right, #151a26 0 29px, #1e2433 29px 30px);}
+  .slot{width:30px; height:16px; border-radius:3px; display:inline-block; vertical-align:middle;}
+  .slot.free{background:var(--free)} .slot.busy{background:var(--busy)} .slot.buffer{background:var(--buffer)}
+  .nowLine{position:absolute; top:0; bottom:0; width:2px; background:var(--now); pointer-events:none; opacity:.9;}
+
+  .empty{padding:2rem; text-align:center; color:var(--muted); border-top:1px dashed #2a3044;}
+
+  dialog{border:none; border-radius:.8rem; background:#121622; color:var(--text); width:min(520px, 92vw);
+         box-shadow:0 20px 50px rgba(0,0,0,.55), 0 0 0 1px #1f2636 inset;}
+  dialog::backdrop{background: rgba(0,0,0,.55)}
+  .dlgHead{padding:1rem 1.2rem; border-bottom:1px solid #232a3d; font-weight:700}
+  .dlgBody{padding:1rem 1.2rem; display:grid; gap:.8rem}
+  .dlgRow{display:grid; gap:.3rem}
+  .dlgRow.inline{grid-template-columns:1fr 1fr; gap:.8rem}
   input[type="text"], input[type="datetime-local"], select{
-    background:#0f1320; color:var(--text); border:1px solid #2b3248; border-radius:.5rem; padding:.6rem .7rem; font-size:1rem;
-  }
-  .dlgFoot{ padding:1rem 1.2rem; border-top:1px solid #232a3d; display:flex; gap:.6rem; justify-content:flex-end }
-  .muted{ color:var(--muted); font-size:.88rem }
+    background:#0f1320; color:var(--text); border:1px solid #2b3248; border-radius:.5rem; padding:.6rem .7rem; font-size:1rem;}
+  .dlgFoot{padding:1rem 1.2rem; border-top:1px solid #232a3d; display:flex; gap:.6rem; justify-content:flex-end}
+  .muted{color:var(--muted); font-size:.88rem}
 
-  /* ちょっと小さい端末向け */
-  @media (max-width: 480px){
-    .grid{ grid-template-columns: 260px 1fr; }
-    .station{ max-width: 160px; }
+  @media (max-width:480px){
+    .plate{font-size:.85rem}
   }
 </style>
 </head>
 <body>
-  <header>
-    <div class="toolbar">
-      <div class="title">調布エリア｜72時間スケジュール</div>
-      <div class="legend">
-        <span><i class="dot free"></i>作業可</span>
-        <span><i class="dot busy"></i>予約中</span>
-        <span><i class="dot buffer"></i>ブランク</span>
-        <span><i class="dot now"></i>現在</span>
-      </div>
+<header>
+  <div class="toolbar">
+    <div class="title">調布エリア｜72時間スケジュール</div>
+    <div class="legend">
+      <span><i class="dot free"></i>作業可</span>
+      <span><i class="dot busy"></i>予約中</span>
+      <span><i class="dot buffer"></i>ブランク</span>
+      <span><i class="dot now"></i>現在</span>
     </div>
-    <div class="toolbar" style="border-top:1px solid #20263a">
-      <button class="pill" id="addCarBtn">車両追加</button>
-      <button class="pill" id="removeCarBtn">車両削除</button>
-      <button class="pill primary" id="addResvBtn">登録（予定）</button>
-      <button class="pill" id="editResvBtn">変更（予定）</button>
-      <button class="pill warn" id="delResvBtn">削除（予定）</button>
-      <div style="flex:1"></div>
-      <button class="pill" id="shiftBackBtn">◀︎ 12時間</button>
-      <div class="pill" style="pointer-events:none" id="windowLabel">表示範囲</div>
-      <button class="pill" id="shiftFwdBtn">12時間 ▶︎</button>
-      <button class="pill" id="resetNowBtn">現在に戻す</button>
-      <button class="pill" id="clearAllBtn">全データ初期化</button>
-    </div>
-  </header>
-
-  <div class="wrap">
-    <div class="board">
-      <div class="grid">
-        <!-- ヘッダー -->
-        <div class="leftHeader">ステーション / 車番</div>
-        <div class="rightHeader hourScale">
-          <div class="scaleInner" id="scaleInner"></div>
-        </div>
-        <!-- 本体 -->
-        <div class="leftCol" id="leftCol"></div>
-        <div class="rightCol" id="rightCol"></div>
-      </div>
-      <div class="empty" id="emptyMsg" style="display:none">車両を追加してね。「車両追加」→ 予定は「登録（予定）」で入力するわ。</div>
-    </div>
-    <p class="muted" style="margin:.8rem 0 0">
-      ※ 試作版：データはブラウザの <b>localStorage</b> に保存（キー: <code>sched-chofu-v1</code>）。別端末とは同期しない。後でGASに差し替え可能。
-    </p>
   </div>
+  <div class="toolbar" style="border-top:1px solid #20263a">
+    <button class="pill" id="addCarBtn">車両追加</button>
+    <button class="pill" id="removeCarBtn">車両削除</button>
+    <button class="pill primary" id="addResvBtn">登録（予定）</button>
+    <button class="pill" id="editResvBtn">変更（予定）</button>
+    <button class="pill warn" id="delResvBtn">削除（予定）</button>
+    <div style="flex:1"></div>
+    <button class="pill" id="shiftBackBtn">◀︎ 12時間</button>
+    <div class="pill" style="pointer-events:none" id="windowLabel">表示範囲</div>
+    <button class="pill" id="shiftFwdBtn">12時間 ▶︎</button>
+    <button class="pill" id="resetNowBtn">現在に戻す</button>
+    <button class="pill" id="clearAllBtn">全データ初期化</button>
+  </div>
+</header>
 
-  <!-- 予定の追加/変更 -->
-  <dialog id="resvDlg">
-    <div class="dlgHead">予定の入力</div>
-    <form method="dialog" id="resvForm">
-      <div class="dlgBody">
-        <div class="dlgRow">
-          <label>対象車両</label>
-          <select id="resvCarSelect"></select>
-        </div>
-        <div class="dlgRow inline">
-          <div>
-            <label>借用開始（お客さん）</label>
-            <input type="datetime-local" id="resvStart" required>
-          </div>
-          <div>
-            <label>返却予定（お客さん）</label>
-            <input type="datetime-local" id="resvEnd" required>
-          </div>
-        </div>
-        <div class="muted">※ ブランク（前後15分）は自動で反映されるわ。</div>
-      </div>
-      <div class="dlgFoot">
-        <button class="pill" value="cancel">キャンセル</button>
-        <button class="pill primary" value="ok">OK</button>
-      </div>
-    </form>
-  </dialog>
+<div class="wrap">
+  <div class="board">
+    <!-- 時間スケール（横スクロール対象） -->
+    <div class="rightHeader" id="hourScale">
+      <div class="scaleInner" id="scaleInner"></div>
+    </div>
 
-  <!-- 予定の選択（変更/削除用） -->
-  <dialog id="pickDlg">
-    <div class="dlgHead" id="pickTitle">予定を選択</div>
-    <form method="dialog" id="pickForm">
-      <div class="dlgBody">
-        <div class="dlgRow">
-          <label>対象車両</label>
-          <select id="pickCarSelect"></select>
-        </div>
-        <div class="dlgRow">
-          <label>予定</label>
-          <select id="pickResvSelect"></select>
-        </div>
-      </div>
-      <div class="dlgFoot">
-        <button class="pill" value="cancel">キャンセル</button>
-        <button class="pill primary" value="ok">OK</button>
-      </div>
-    </form>
-  </dialog>
+    <!-- 車両リスト（縦スクロール） -->
+    <div class="list" id="list"></div>
+    <div class="empty" id="emptyMsg" style="display:none">車両を追加してね。「車両追加」→ 予定は「登録（予定）」で入力。</div>
+  </div>
+  <p class="muted" style="margin:.8rem 0 0">
+    ※ 試作版：データはブラウザの <b>localStorage</b> に保存（キー: <code>sched-chofu-v1</code>）。別端末とは同期しない。後でGASに差し替え可能。
+  </p>
+</div>
 
-  <!-- 車両追加 / 削除 -->
-  <dialog id="carDlg">
-    <div class="dlgHead" id="carDlgTitle">車両追加</div>
-    <form method="dialog" id="carForm">
-      <div class="dlgBody">
-        <div class="dlgRow">
-          <label>ステーション名</label>
-          <input type="text" id="carStation" required placeholder="例）タイムズ調布○○第2">
+<!-- 予定の追加/変更 -->
+<dialog id="resvDlg">
+  <div class="dlgHead">予定の入力</div>
+  <form method="dialog" id="resvForm">
+    <div class="dlgBody">
+      <div class="dlgRow">
+        <label>対象車両</label>
+        <select id="resvCarSelect"></select>
+      </div>
+      <div class="dlgRow inline">
+        <div>
+          <label>借用開始（お客さん）</label>
+          <input type="datetime-local" id="resvStart" required>
         </div>
-        <div class="dlgRow">
-          <label>車両ナンバー</label>
-          <input type="text" id="carPlate" required placeholder="例）多摩500 わ 1234">
+        <div>
+          <label>返却予定（お客さん）</label>
+          <input type="datetime-local" id="resvEnd" required>
         </div>
       </div>
-      <div class="dlgFoot">
-        <button class="pill" value="cancel">キャンセル</button>
-        <button class="pill primary" value="ok">OK</button>
+      <div class="muted">※ ブランク（前後15分）は自動で反映されるわ。</div>
+    </div>
+    <div class="dlgFoot">
+      <button class="pill" value="cancel">キャンセル</button>
+      <button class="pill primary" value="ok">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 予定の選択（変更/削除用） -->
+<dialog id="pickDlg">
+  <div class="dlgHead" id="pickTitle">予定を選択</div>
+  <form method="dialog" id="pickForm">
+    <div class="dlgBody">
+      <div class="dlgRow">
+        <label>対象車両</label>
+        <select id="pickCarSelect"></select>
       </div>
-    </form>
-  </dialog>
+      <div class="dlgRow">
+        <label>予定</label>
+        <select id="pickResvSelect"></select>
+      </div>
+    </div>
+    <div class="dlgFoot">
+      <button class="pill" value="cancel">キャンセル</button>
+      <button class="pill primary" value="ok">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 車両追加 / 削除 -->
+<dialog id="carDlg">
+  <div class="dlgHead" id="carDlgTitle">車両追加</div>
+  <form method="dialog" id="carForm">
+    <div class="dlgBody">
+      <div class="dlgRow">
+        <label>ステーション名</label>
+        <input type="text" id="carStation" required placeholder="例）タイムズ調布○○第2">
+      </div>
+      <div class="dlgRow">
+        <label>車両ナンバー</label>
+        <input type="text" id="carPlate" required placeholder="例）多摩500 わ 1234">
+      </div>
+    </div>
+    <div class="dlgFoot">
+      <button class="pill" value="cancel">キャンセル</button>
+      <button class="pill primary" value="ok">OK</button>
+    </div>
+  </form>
+</dialog>
 
 <script>
 (() => {
@@ -261,17 +195,14 @@
   const SLOT_MIN = 30;                 // 30分刻み
   const HORIZON_H = 72;                // 72時間
   const SLOT_COUNT = (HORIZON_H*60)/SLOT_MIN; // 144
-  const BUFFER_MIN = 15;               // 前後15分のブランク
-  const slotWidth = 30;                // px / slot（見やすさ優先）
-  const timelines = new Set();         // 連動スクロール対象
+  const BUFFER_MIN = 15;               // 前後15分ブランク
+  const slotWidth = 30;                // px / slot
   let state = loadState();
   let selectedId = null;
 
-  // 表示範囲（ウィンドウ）：「今」を30分に丸めて起点にする
   let windowStart = floorToSlot(new Date());
   let windowEnd   = new Date(windowStart.getTime() + HORIZON_H*3600*1000);
 
-  // ---------- ユーティリティ ----------
   function loadState(){
     try{
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -280,379 +211,266 @@
     }catch(e){ return { cars: sampleCars(), lastId: 3 }; }
   }
   function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-
   function sampleCars(){
-    // 初期サンプル（自由に消してOK）
     return [
-      { id:1, station:'タイムズ調布下石原第2', plate:'多摩500 わ 1234', reservations:[
-        // 例：今夜9:00-翌日10:30 予約
-      ]},
+      { id:1, station:'タイムズ調布下石原第2', plate:'多摩500 わ 1234', reservations:[] },
       { id:2, station:'タイムズ調布小島町第3', plate:'多摩300 わ 5678', reservations:[] },
       { id:3, station:'タイムズ調布布田第1',   plate:'多摩501 わ 9012', reservations:[] },
     ];
   }
+  function fmt(dt){const y=dt.getFullYear(),m=('0'+(dt.getMonth()+1)).slice(-2),d=('0'+dt.getDate()).slice(-2);
+    const hh=('0'+dt.getHours()).slice(-2),mm=('0'+dt.getMinutes()).slice(-2); return `${y}-${m}-${d} ${hh}:${mm}`;}
+  function toLocalInputValue(dt){const y=dt.getFullYear(),m=('0'+(dt.getMonth()+1)).slice(-2),d=('0'+dt.getDate()).slice(-2);
+    const hh=('0'+dt.getHours()).slice(-2),mm=('0'+dt.getMinutes()).slice(-2); return `${y}-${m}-${d}T${hh}:${mm}`;}
+  function fromLocalInputValue(v){ return new Date(v); }
+  function floorToSlot(dt){ const t=new Date(dt); t.setSeconds(0,0); t.setMinutes(t.getMinutes()- (t.getMinutes()%SLOT_MIN)); return t; }
+  function addMinutes(dt,minutes){ return new Date(dt.getTime()+minutes*60*1000); }
+  function overlap(aStart,aEnd,bStart,bEnd){ return (aStart<bEnd)&&(bStart<aEnd); }
 
-  function fmt(dt){
-    const y=dt.getFullYear(), m=('0'+(dt.getMonth()+1)).slice(-2), d=('0'+dt.getDate()).slice(-2);
-    const hh=('0'+dt.getHours()).slice(-2), mm=('0'+dt.getMinutes()).slice(-2);
-    return `${y}-${m}-${d} ${hh}:${mm}`;
-  }
-  function toLocalInputValue(dt){
-    // datetime-local 用（ローカルタイム）
-    const y=dt.getFullYear();
-    const m=('0'+(dt.getMonth()+1)).slice(-2);
-    const d=('0'+dt.getDate()).slice(-2);
-    const hh=('0'+dt.getHours()).slice(-2);
-    const mm=('0'+dt.getMinutes()).slice(-2);
-    return `${y}-${m}-${d}T${hh}:${mm}`;
-  }
-  function fromLocalInputValue(v){
-    // ユーザ端末のタイムゾーンで Date を作る
-    return new Date(v);
-  }
-  function floorToSlot(dt){
-    const t = new Date(dt);
-    t.setSeconds(0,0);
-    const m = t.getMinutes();
-    t.setMinutes(m - (m % SLOT_MIN));
-    return t;
-  }
-  function addMinutes(dt, minutes){ return new Date(dt.getTime() + minutes*60*1000); }
-
-  function overlap(aStart, aEnd, bStart, bEnd){
-    return (aStart < bEnd) && (bStart < aEnd);
-  }
-
-  // ---------- スケール描画（上部の時間目盛り） ----------
+  // ---- 時間スケール描画 ----
   function renderScale(){
     const wrap = document.getElementById('scaleInner');
     wrap.innerHTML = '';
-    wrap.style.width = (SLOT_COUNT*slotWidth) + 'px';
+    wrap.style.width = (SLOT_COUNT*slotWidth)+'px';
 
     for(let i=0;i<=SLOT_COUNT;i++){
       const t = addMinutes(windowStart, i*SLOT_MIN);
       const x = i*slotWidth;
-
-      if(t.getMinutes() === 0){ // 毎正時にラベル
+      if(t.getMinutes()===0){
         const lbl = document.createElement('div');
-        lbl.className = 'scaleLabel';
-        lbl.style.left = x+'px';
-        lbl.textContent = `${('0'+t.getHours()).slice(-2)}:00`;
-        wrap.appendChild(lbl);
+        lbl.className='scaleLabel'; lbl.style.left=x+'px';
+        lbl.textContent=`${('0'+t.getHours()).slice(-2)}:00`; wrap.appendChild(lbl);
       }
-      if(t.getHours()===0 && t.getMinutes()===0){ // 日付
+      if(t.getHours()===0 && t.getMinutes()===0){
         const day = document.createElement('div');
-        day.className = 'scaleDay';
-        day.style.left = x+'px';
-        day.textContent = `${t.getMonth()+1}/${t.getDate()}(日月火水木金土)[${'日月火水木金土'[t.getDay()]}]`.replace('(日月火水木金土)','');
+        day.className='scaleDay'; day.style.left=x+'px';
+        day.textContent = `${t.getMonth()+1}/${t.getDate()}（${'日月火水木金土'[t.getDay()]}）`;
         wrap.appendChild(day);
       }
     }
-
-    // 現在位置ライン
-    placeNowLines();
-    updateWindowLabel();
+    placeNowLines(); updateWindowLabel();
   }
-
   function updateWindowLabel(){
-    const el = document.getElementById('windowLabel');
-    el.textContent = `${fmt(windowStart)} 〜 ${fmt(windowEnd)}`;
+    document.getElementById('windowLabel').textContent = `${fmt(windowStart)} 〜 ${fmt(windowEnd)}`;
   }
 
-  // ---------- 本体描画 ----------
+  // ---- リスト描画（2段構成） ----
   function render(){
-    const left = document.getElementById('leftCol');
-    const right = document.getElementById('rightCol');
+    const list = document.getElementById('list');
     const empty = document.getElementById('emptyMsg');
+    list.innerHTML='';
 
-    left.innerHTML = '';
-    right.innerHTML = '';
-    timelines.clear();
+    if(state.cars.length===0){ empty.style.display='block'; }
+    else{ empty.style.display='none'; }
 
-    if(state.cars.length===0){
-      empty.style.display = 'block';
-    }else{
-      empty.style.display = 'none';
-    }
+    state.cars.forEach(car=>{
+      const item = document.createElement('div');
+      item.className = 'carItem' + (car.id===selectedId ? ' selected':'' );
+      item.addEventListener('click',()=>{ selectedId = car.id===selectedId ? null : car.id; render(); });
 
-    state.cars.forEach(car => {
-      // 左列
-      const row = document.createElement('div');
-      row.className = 'row' + (car.id===selectedId ? ' selected':'');
-      row.dataset.id = car.id;
-      row.addEventListener('click', ()=>{
-        selectedId = car.id===selectedId ? null : car.id;
-        render();
-      });
+      // 上段：情報
+      const info = document.createElement('div'); info.className='info';
+      const st = document.createElement('div'); st.className='station'; st.textContent = car.station;
+      const pl = document.createElement('div'); pl.className='plate';  pl.textContent = car.plate;
+      info.appendChild(st); info.appendChild(pl);
 
-      const station = document.createElement('div');
-      station.className = 'station';
-      station.textContent = car.station;
+      // 下段：タイムライン
+      const tl = document.createElement('div'); tl.className='timeline timeline-scroll';
+      const inner = document.createElement('div'); inner.className='timelineInner';
+      inner.style.width = (SLOT_COUNT*slotWidth)+'px';
 
-      const plate = document.createElement('div');
-      plate.className = 'plate';
-      plate.textContent = car.plate;
-
-      row.appendChild(station);
-      row.appendChild(plate);
-      left.appendChild(row);
-
-      // 右列（タイムライン）
-      const tlWrap = document.createElement('div');
-      tlWrap.className = 'timeline timeline-scroll';
-      tlWrap.style.width = (SLOT_COUNT*slotWidth)+'px';
-
-      // スロット生成
+      // スロット
       for(let i=0;i<SLOT_COUNT;i++){
-        const slot = document.createElement('div');
-        slot.className = 'slot'; // 後で色を割り当て
-        tlWrap.appendChild(slot);
+        const slot = document.createElement('span'); slot.className='slot';
+        inner.appendChild(slot);
       }
+      const now = document.createElement('div'); now.className='nowLine'; inner.appendChild(now);
+      tl.appendChild(inner);
 
-      // 現在ライン
-      const now = document.createElement('div');
-      now.className = 'nowLine';
-      tlWrap.appendChild(now);
+      item.appendChild(info);
+      item.appendChild(tl);
+      list.appendChild(item);
 
-      right.appendChild(tlWrap);
-      timelines.add(tlWrap);
-
-      // スロット色決定
-      paintTimeline(tlWrap, car.reservations);
+      // 色塗り
+      paintTimeline(inner, car.reservations);
     });
 
-    syncScrollSetup();
+    setupScrollSync();
     placeNowLines();
   }
 
-  function paintTimeline(tlWrap, reservations){
-    // 予約 [start,end) の配列（Date）に変換
-    const res = reservations.map(r => ({start:new Date(r.start), end:new Date(r.end)}));
-
-    // 各スロットの時間帯
-    const slots = tlWrap.querySelectorAll('.slot');
+  function paintTimeline(inner, reservations){
+    const res = reservations.map(r=>({start:new Date(r.start), end:new Date(r.end)}));
+    const slots = inner.querySelectorAll('.slot');
     for(let i=0;i<slots.length;i++){
       const slotEl = slots[i];
       const slotStart = addMinutes(windowStart, i*SLOT_MIN);
       const slotEnd   = addMinutes(slotStart, SLOT_MIN);
-
       let cls = 'free';
       for(const r of res){
-        // まず busy
-        if(overlap(slotStart, slotEnd, r.start, r.end)){
-          cls = 'busy';
-          break;
-        }
+        if(overlap(slotStart, slotEnd, r.start, r.end)){ cls='busy'; break; }
       }
       if(cls!=='busy'){
         for(const r of res){
-          const pre  = [ addMinutes(r.start, -BUFFER_MIN), r.start ];
-          const post = [ r.end, addMinutes(r.end, BUFFER_MIN) ];
-          if(overlap(slotStart, slotEnd, pre[0], pre[1]) || overlap(slotStart, slotEnd, post[0], post[1])){
-            cls = 'buffer';
-            break;
-          }
+          const pre0 = addMinutes(r.start, -BUFFER_MIN), pre1 = r.start;
+          const post0 = r.end, post1 = addMinutes(r.end, BUFFER_MIN);
+          if(overlap(slotStart, slotEnd, pre0, pre1) || overlap(slotStart, slotEnd, post0, post1)){ cls='buffer'; break; }
         }
       }
       slotEl.classList.add(cls);
     }
   }
 
-  // ---------- 現在ライン ----------
+  // ---- 現在ライン ----
   function placeNowLines(){
     const now = new Date();
-    const pos = ( (now - windowStart) / (SLOT_MIN*60*1000) ) * slotWidth;
-    document.querySelectorAll('.timeline').forEach(tl=>{
-      const line = tl.querySelector('.nowLine');
-      if(now < windowStart || now > windowEnd){
-        line.style.display = 'none';
-      }else{
-        line.style.display = 'block';
-        line.style.left = Math.max(0, Math.min(pos, SLOT_COUNT*slotWidth)) + 'px';
-      }
+    const pos = ((now - windowStart) / (SLOT_MIN*60*1000)) * slotWidth;
+    document.querySelectorAll('.timelineInner').forEach(inner=>{
+      const line = inner.querySelector('.nowLine');
+      if(now < windowStart || now > windowEnd){ line.style.display='none'; }
+      else{ line.style.display='block'; line.style.left = Math.max(0, Math.min(pos, SLOT_COUNT*slotWidth))+'px'; }
     });
   }
-  setInterval(placeNowLines, 60*1000); // 1分ごと更新
+  setInterval(placeNowLines, 60*1000);
 
-  // ---------- スクロール連動 ----------
-  function syncScrollSetup(){
-    const left = document.getElementById('leftCol');
-    const right = document.getElementById('rightCol');
-    const scale = document.querySelector('.hourScale');
+  // ---- 横スクロール連動（ヘッダと各タイムライン）----
+  function setupScrollSync(){
+    const header = document.getElementById('hourScale');
+    const timelines = document.querySelectorAll('.timeline');
+    let lock = false;
 
-    // 縦スクロール同期（左と右）
-    left.onscroll = () => { right.scrollTop = left.scrollTop; };
-    right.onscroll = () => { left.scrollTop = right.scrollTop; };
-
-    // 横スクロール同期（ヘッダスケールと各タイムライン）
-    const onXScroll = (src) => {
+    const syncAll = (src) => {
+      if(lock) return; lock = true;
       const x = src.scrollLeft;
-      // 右列の一番上のスクロール値を基準にする
-      scale.scrollLeft = x;
-      document.querySelectorAll('.timeline-scroll').forEach(el=>{
-        if(el!==src) el.scrollLeft = x;
-      });
+      if(src!==header) header.scrollLeft = x;
+      timelines.forEach(el=>{ if(el!==src) el.scrollLeft = x; });
+      lock = false;
     };
 
-    // 右列コンテナの横スクロールを拾って、子の timeline に反映
-    right.addEventListener('scroll', (e)=>{
-      // 横スクロールは right 自体ではなく、各 timeline を操作するので、
-      // nothing here（連動は各 .timeline-scroll の onscroll でやる）
-    });
-
-    document.querySelectorAll('.timeline-scroll').forEach(el=>{
-      el.onscroll = ()=> onXScroll(el);
-    });
+    header.onscroll = ()=> syncAll(header);
+    timelines.forEach(el=> el.onscroll = ()=> syncAll(el));
   }
 
-  // ---------- 操作系 ----------
+  // ---- セレクト更新 ----
   function updateCarSelects(){
     const resvSelect = document.getElementById('resvCarSelect');
     const pickCarSelect = document.getElementById('pickCarSelect');
     [resvSelect, pickCarSelect].forEach(sel=>{
-      sel.innerHTML = '';
+      sel.innerHTML='';
       state.cars.forEach(c=>{
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = `${c.station}｜${c.plate}`;
-        sel.appendChild(opt);
+        const opt=document.createElement('option');
+        opt.value=c.id; opt.textContent=`${c.station}｜${c.plate}`; sel.appendChild(opt);
       });
-      if(selectedId){
-        sel.value = selectedId;
-      }
+      if(selectedId) sel.value = selectedId;
     });
   }
   function updatePickResvList(){
     const carId = parseInt(document.getElementById('pickCarSelect').value,10);
     const car = state.cars.find(c=>c.id===carId);
     const list = document.getElementById('pickResvSelect');
-    list.innerHTML = '';
+    list.innerHTML='';
     if(!car || !car.reservations || car.reservations.length===0){
-      const opt = document.createElement('option');
-      opt.value = '';
-      opt.textContent = '（予定なし）';
-      list.appendChild(opt);
-      return;
+      const opt=document.createElement('option'); opt.value=''; opt.textContent='（予定なし）'; list.appendChild(opt); return;
     }
-    car.reservations
-      .slice()
-      .sort((a,b)=> new Date(a.start)-new Date(b.start))
-      .forEach((r,idx)=>{
-        const s = new Date(r.start), e = new Date(r.end);
-        const opt = document.createElement('option');
-        opt.value = idx;
-        opt.textContent = `${fmt(s)} 〜 ${fmt(e)}`;
-        list.appendChild(opt);
-      });
+    car.reservations.slice().sort((a,b)=> new Date(a.start)-new Date(b.start)).forEach((r,idx)=>{
+      const s=new Date(r.start), e=new Date(r.end);
+      const opt=document.createElement('option'); opt.value=idx; opt.textContent=`${fmt(s)} 〜 ${fmt(e)}`; list.appendChild(opt);
+    });
   }
 
-  // 車両追加
+  // ---- ボタン動作 ----
   document.getElementById('addCarBtn').addEventListener('click', ()=>{
-    const dlg = document.getElementById('carDlg');
-    document.getElementById('carDlgTitle').textContent = '車両追加';
-    document.getElementById('carStation').value = '';
-    document.getElementById('carPlate').value = '';
+    const dlg=document.getElementById('carDlg');
+    document.getElementById('carDlgTitle').textContent='車両追加';
+    document.getElementById('carStation').value=''; document.getElementById('carPlate').value='';
     dlg.showModal();
     dlg.addEventListener('close', ()=>{
-      if(dlg.returnValue === 'ok'){
-        const st = document.getElementById('carStation').value.trim();
-        const pl = document.getElementById('carPlate').value.trim();
+      if(dlg.returnValue==='ok'){
+        const st=document.getElementById('carStation').value.trim();
+        const pl=document.getElementById('carPlate').value.trim();
         if(st && pl){
-          const id = ++state.lastId;
-          state.cars.push({ id, station:st, plate:pl, reservations:[] });
-          selectedId = id;
-          saveState(); render(); updateCarSelects();
+          const id=++state.lastId;
+          state.cars.push({id, station:st, plate:pl, reservations:[]});
+          selectedId=id; saveState(); render(); updateCarSelects();
         }
       }
     }, {once:true});
   });
 
-  // 車両削除
   document.getElementById('removeCarBtn').addEventListener('click', ()=>{
-    if(!selectedId){ alert('削除する車両を左列で選択してね。'); return; }
+    if(!selectedId){ alert('削除する車両を選択してね。'); return; }
     const car = state.cars.find(c=>c.id===selectedId);
     if(!confirm(`本当に削除する？\n${car.station}｜${car.plate}`)) return;
     state.cars = state.cars.filter(c=>c.id!==selectedId);
-    selectedId = null;
-    saveState(); render(); updateCarSelects();
+    selectedId=null; saveState(); render(); updateCarSelects();
   });
 
-  // 予定 追加
   document.getElementById('addResvBtn').addEventListener('click', ()=>{
-    const dlg = document.getElementById('resvDlg');
+    const dlg=document.getElementById('resvDlg');
     updateCarSelects();
-    // デフォは「選択中車両」
-    if(selectedId){
-      document.getElementById('resvCarSelect').value = selectedId;
-    }
-    // デフォ時間：表示ウィンドウ開始〜+2時間
+    if(selectedId){ document.getElementById('resvCarSelect').value = selectedId; }
     document.getElementById('resvStart').value = toLocalInputValue(windowStart);
-    document.getElementById('resvEnd').value   = toLocalInputValue(addMinutes(windowStart, 120));
+    document.getElementById('resvEnd').value   = toLocalInputValue(addMinutes(windowStart,120));
     dlg.showModal();
     dlg.addEventListener('close', ()=>{
       if(dlg.returnValue==='ok'){
-        const carId = parseInt(document.getElementById('resvCarSelect').value,10);
-        const car = state.cars.find(c=>c.id===carId);
-        const s = fromLocalInputValue(document.getElementById('resvStart').value);
-        const e = fromLocalInputValue(document.getElementById('resvEnd').value);
+        const carId=parseInt(document.getElementById('resvCarSelect').value,10);
+        const car=state.cars.find(c=>c.id===carId);
+        const s=fromLocalInputValue(document.getElementById('resvStart').value);
+        const e=fromLocalInputValue(document.getElementById('resvEnd').value);
         if(!car || !(s && e) || e<=s){ alert('時刻を確認してね。'); return; }
-        car.reservations.push({ start:s.toISOString(), end:e.toISOString() });
+        car.reservations.push({start:s.toISOString(), end:e.toISOString()});
         saveState(); render();
       }
     }, {once:true});
   });
 
-  // 予定 変更
   document.getElementById('editResvBtn').addEventListener('click', ()=>{
-    const pick = document.getElementById('pickDlg');
-    document.getElementById('pickTitle').textContent = '予定を選択（変更）';
+    const pick=document.getElementById('pickDlg');
+    document.getElementById('pickTitle').textContent='予定を選択（変更）';
     updateCarSelects(); updatePickResvList();
-    document.getElementById('pickCarSelect').onchange = updatePickResvList;
+    document.getElementById('pickCarSelect').onchange=updatePickResvList;
     pick.showModal();
     pick.addEventListener('close', ()=>{
       if(pick.returnValue!=='ok') return;
-      const carId = parseInt(document.getElementById('pickCarSelect').value,10);
-      const idx = parseInt(document.getElementById('pickResvSelect').value,10);
-      const car = state.cars.find(c=>c.id===carId);
+      const carId=parseInt(document.getElementById('pickCarSelect').value,10);
+      const idx=parseInt(document.getElementById('pickResvSelect').value,10);
+      const car=state.cars.find(c=>c.id===carId);
       if(!car || isNaN(idx) || !car.reservations[idx]){ alert('変更対象の予定がないわ。'); return; }
-      const target = car.reservations[idx];
+      const target=car.reservations[idx];
 
-      // 変更ダイアログ
-      const dlg = document.getElementById('resvDlg');
+      const dlg=document.getElementById('resvDlg');
       updateCarSelects();
-      document.getElementById('resvCarSelect').value = carId;
-      document.getElementById('resvStart').value = toLocalInputValue(new Date(target.start));
-      document.getElementById('resvEnd').value   = toLocalInputValue(new Date(target.end));
+      document.getElementById('resvCarSelect').value=carId;
+      document.getElementById('resvStart').value=toLocalInputValue(new Date(target.start));
+      document.getElementById('resvEnd').value  =toLocalInputValue(new Date(target.end));
       dlg.showModal();
       dlg.addEventListener('close', ()=>{
         if(dlg.returnValue==='ok'){
-          const cid = parseInt(document.getElementById('resvCarSelect').value,10);
-          const destCar = state.cars.find(c=>c.id===cid);
-          const s = fromLocalInputValue(document.getElementById('resvStart').value);
-          const e = fromLocalInputValue(document.getElementById('resvEnd').value);
-          if(!(s && e) || e<=s){ alert('時刻を確認してね。'); return; }
-          // もともとの予約を削除
+          const cid=parseInt(document.getElementById('resvCarSelect').value,10);
+          const dest=state.cars.find(c=>c.id===cid);
+          const s=fromLocalInputValue(document.getElementById('resvStart').value);
+          const e=fromLocalInputValue(document.getElementById('resvEnd').value);
+          if(!(s&&e) || e<=s){ alert('時刻を確認してね。'); return; }
           car.reservations.splice(idx,1);
-          // 新たに追加（別車両に移すことも可）
-          destCar.reservations.push({ start:s.toISOString(), end:e.toISOString() });
+          dest.reservations.push({start:s.toISOString(), end:e.toISOString()});
           saveState(); render();
         }
       }, {once:true});
     }, {once:true});
   });
 
-  // 予定 削除
   document.getElementById('delResvBtn').addEventListener('click', ()=>{
-    const pick = document.getElementById('pickDlg');
-    document.getElementById('pickTitle').textContent = '予定を選択（削除）';
+    const pick=document.getElementById('pickDlg');
+    document.getElementById('pickTitle').textContent='予定を選択（削除）';
     updateCarSelects(); updatePickResvList();
-    document.getElementById('pickCarSelect').onchange = updatePickResvList;
+    document.getElementById('pickCarSelect').onchange=updatePickResvList;
     pick.showModal();
     pick.addEventListener('close', ()=>{
       if(pick.returnValue!=='ok') return;
-      const carId = parseInt(document.getElementById('pickCarSelect').value,10);
-      const idx = parseInt(document.getElementById('pickResvSelect').value,10);
-      const car = state.cars.find(c=>c.id===carId);
+      const carId=parseInt(document.getElementById('pickCarSelect').value,10);
+      const idx=parseInt(document.getElementById('pickResvSelect').value,10);
+      const car=state.cars.find(c=>c.id===carId);
       if(!car || isNaN(idx) || !car.reservations[idx]){ alert('削除対象の予定がないわ。'); return; }
       car.reservations.splice(idx,1);
       saveState(); render();
@@ -661,26 +479,20 @@
 
   // 表示範囲の移動
   document.getElementById('shiftBackBtn').addEventListener('click', ()=>{
-    windowStart = addMinutes(windowStart, -720); // 12h
-    windowEnd = addMinutes(windowEnd, -720);
+    windowStart = addMinutes(windowStart, -720); windowEnd = addMinutes(windowEnd, -720);
     renderScale(); render();
   });
   document.getElementById('shiftFwdBtn').addEventListener('click', ()=>{
-    windowStart = addMinutes(windowStart, 720);
-    windowEnd = addMinutes(windowEnd, 720);
+    windowStart = addMinutes(windowStart, 720); windowEnd = addMinutes(windowEnd, 720);
     renderScale(); render();
   });
   document.getElementById('resetNowBtn').addEventListener('click', ()=>{
-    windowStart = floorToSlot(new Date());
-    windowEnd = addMinutes(windowStart, HORIZON_H*60);
+    windowStart = floorToSlot(new Date()); windowEnd = addMinutes(windowStart, HORIZON_H*60);
     renderScale(); render();
   });
-
-  // 全初期化
   document.getElementById('clearAllBtn').addEventListener('click', ()=>{
     if(!confirm('調布エリアの保存データをすべて初期化するわ。よい？')) return;
-    localStorage.removeItem(STORAGE_KEY);
-    state = loadState(); selectedId = null;
+    localStorage.removeItem(STORAGE_KEY); state=loadState(); selectedId=null;
     renderScale(); render(); updateCarSelects();
   });
 
