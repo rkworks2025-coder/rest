@@ -29,17 +29,25 @@
   .dot.free{background:var(--free)} .dot.busy{background:var(--busy)} .dot.buffer{background:var(--buffer)} .dot.now{background:var(--now)}
 
   .wrap{padding:1rem;}
-  .board{background:var(--card); border:1px solid #20263a; border-radius:.8rem; overflow:hidden;}
+  .board{background:var(--card); border:1px solid #20263a; border-radius:.8rem; overflow:hidden; position:relative;}
 
-  /* 上部：横スクロールの時間スケール */
+  /* 上部：横スクロールの時間スケール（15分目盛りを追加） */
   .rightHeader{background:#141824; border-bottom:1px solid #20263a; position:sticky; top: 3.4rem; z-index:5; overflow:auto;}
-  .scaleInner{position:relative; height:40px; display:flex;
-              background: repeating-linear-gradient(to right, transparent 0 59px, var(--grid) 59px 60px);}
+  .scaleInner{
+    position:relative; height:40px; display:flex;
+    background:
+      repeating-linear-gradient(to right, rgba(255,255,255,.06) 0 1px, transparent 1px 15px), /* 15分の細線 */
+      repeating-linear-gradient(to right, transparent 0 59px, var(--grid) 59px 60px);         /* 30分シェード */
+  }
   .scaleLabel{position:absolute; top:4px; transform:translateX(-50%); font-size:.8rem; color:var(--muted); white-space:nowrap;}
   .scaleDay{position:absolute; top:22px; transform:translateX(-50%); font-size:.75rem; color:#90a0b3;}
 
-  /* リスト本体（縦スクロール） */
-  .list{max-height: calc(100vh - 210px); overflow:auto; -webkit-overflow-scrolling:touch;}
+  /* 車両リスト（縦スクロール） */
+  .list{
+    max-height: calc(100vh - 210px);
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 
   /* 1車両＝2段構成（上：情報、下：タイムライン） */
   .carItem{padding:.55rem .9rem .7rem; border-bottom:1px solid #20263a;}
@@ -50,10 +58,23 @@
   .plate{font-size:.9rem; color:#c6cfdb; margin-left:auto; padding-left:.6rem;}
   .tag{font-size:.72rem; color:#9bb5ff; background:#26345b; border:1px solid #3a4c7e; padding:.12rem .4rem; border-radius:.4rem; margin-left:.4rem}
 
-  .timeline{position:relative; margin-top:.4rem; height:34px; overflow:auto;} /* 下段は横スクロール */
+  /* 下段：タイムライン（横だけスクロール。縦は親に任せる） */
+  .timeline{
+    position: relative;
+    margin-top:.4rem;
+    height:34px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    touch-action: pan-x;             /* 横パンはここ、縦パンは親へ通す */
+    -webkit-overflow-scrolling: touch;
+  }
   .timeline::-webkit-scrollbar{height:8px}
-  .timelineInner{position:relative; height:34px;
-                 background: repeating-linear-gradient(to right, #151a26 0 29px, #1e2433 29px 30px);}
+  .timelineInner{
+    position:relative; height:34px;
+    background:
+      repeating-linear-gradient(to right, rgba(255,255,255,.08) 0 1px, transparent 1px 15px), /* 15分の細線 */
+      repeating-linear-gradient(to right, #151a26 0 29px, #1e2433 29px 30px);                 /* 30分シェード */
+  }
   .slot{width:30px; height:16px; border-radius:3px; display:inline-block; vertical-align:middle;}
   .slot.free{background:var(--free)} .slot.busy{background:var(--busy)} .slot.buffer{background:var(--buffer)}
   .nowLine{position:absolute; top:0; bottom:0; width:2px; background:var(--now); pointer-events:none; opacity:.9;}
@@ -71,6 +92,22 @@
     background:#0f1320; color:var(--text); border:1px solid #2b3248; border-radius:.5rem; padding:.6rem .7rem; font-size:1rem;}
   .dlgFoot{padding:1rem 1.2rem; border-top:1px solid #232a3d; display:flex; gap:.6rem; justify-content:flex-end}
   .muted{color:var(--muted); font-size:.88rem}
+
+  /* トップへ戻るボタン（縦スクロール補助） */
+  .toTop{
+    position: sticky;
+    bottom: 1rem;
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    background: #232c45;
+    border: 1px solid #2f3a5a;
+    color: #cfe0ff;
+    padding: .45rem .7rem;
+    border-radius: .6rem;
+    cursor: pointer;
+  }
 
   @media (max-width:480px){
     .plate{font-size:.85rem}
@@ -114,7 +151,10 @@
     <div class="list" id="list"></div>
     <div class="empty" id="emptyMsg" style="display:none">車両を追加してね。「車両追加」→ 予定は「登録（予定）」で入力。</div>
   </div>
-  <p class="muted" style="margin:.8rem 0 0">
+  <div style="display:flex; margin-top:.6rem;">
+    <button class="toTop" id="toTopBtn">↑ 上へ</button>
+  </div>
+  <p class="muted" style="margin:.4rem 0 0">
     ※ 試作版：データはブラウザの <b>localStorage</b> に保存（キー: <code>sched-chofu-v1</code>）。別端末とは同期しない。後でGASに差し替え可能。
   </p>
 </div>
@@ -275,7 +315,7 @@
       info.appendChild(st); info.appendChild(pl);
 
       // 下段：タイムライン
-      const tl = document.createElement('div'); tl.className='timeline timeline-scroll';
+      const tl = document.createElement('div'); tl.className='timeline';
       const inner = document.createElement('div'); inner.className='timelineInner';
       inner.style.width = (SLOT_COUNT*slotWidth)+'px';
 
@@ -324,11 +364,11 @@
   // ---- 現在ライン ----
   function placeNowLines(){
     const now = new Date();
-    const pos = ((now - windowStart) / (SLOT_MIN*60*1000)) * slotWidth;
+    const pos = ((now - windowStart) / (SLOT_MIN*60*1000)) * 30;
     document.querySelectorAll('.timelineInner').forEach(inner=>{
       const line = inner.querySelector('.nowLine');
       if(now < windowStart || now > windowEnd){ line.style.display='none'; }
-      else{ line.style.display='block'; line.style.left = Math.max(0, Math.min(pos, SLOT_COUNT*slotWidth))+'px'; }
+      else{ line.style.display='block'; line.style.left = Math.max(0, Math.min(pos, (SLOT_COUNT*30)))+'px'; }
     });
   }
   setInterval(placeNowLines, 60*1000);
@@ -494,6 +534,11 @@
     if(!confirm('調布エリアの保存データをすべて初期化するわ。よい？')) return;
     localStorage.removeItem(STORAGE_KEY); state=loadState(); selectedId=null;
     renderScale(); render(); updateCarSelects();
+  });
+
+  // 上へボタン
+  document.getElementById('toTopBtn').addEventListener('click', ()=>{
+    document.getElementById('list').scrollTo({top:0, behavior:'smooth'});
   });
 
   // 初期描画
