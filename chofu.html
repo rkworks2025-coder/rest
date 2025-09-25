@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>スケジュール管理（調布 72h） v1g</title>
+<title>スケジュール管理（調布 72h） v1h</title>
 <style>
   :root{
     --bg:#0f1115; --card:#171a21; --panel:#1d2130; --text:#e9edf1; --muted:#a8b0bb;
@@ -35,20 +35,20 @@
   .wrap{padding:1rem;}
   .board{background:var(--card); border:1px solid #20263a; border-radius:.8rem; overflow:hidden; position:relative;}
 
-  /* sticky 時間スケール（行と同じ原点に合わせるため左右パディングなし）*/
   .rightHeader{background:#141824; border-bottom:1px solid #20263a; position:sticky; top: 3.4rem; z-index:6; overflow:auto;}
+  .rightHeader::-webkit-scrollbar{height:8px}
   .scaleInner{
     position:relative; height:var(--scaleH); display:flex;
     background:
       repeating-linear-gradient(to right, rgba(255,255,255,.08) 0 1px, transparent 1px 15px),
-      repeating-linear-gradient(to right, transparent 0 58px, rgba(255,255,255,.30) 58px 60px); /* 毎時太線 */
+      repeating-linear-gradient(to right, transparent 0 58px, rgba(255,255,255,.30) 58px 60px);
+    background-position-x: 0px;
   }
   .scaleLabel{position:absolute; top:4px; transform:translateX(-50%); font-size:.8rem; color:var(--muted); white-space:nowrap;}
   .scaleDay{position:absolute; top:22px; transform:translateX(-50%); font-size:.75rem; color:#90a0b3;}
 
-  /* 車両リスト */
   .list{max-height: calc(100vh - 210px); overflow: auto; -webkit-overflow-scrolling: touch; position: relative;}
-  .list::before{ content:""; display:block; height: var(--scaleSpacerH); } /* 上部スペーサー */
+  .list::before{ content:""; display:block; height: var(--scaleSpacerH); }
 
   .carItem{padding:.55rem var(--sidePad) .7rem; border-bottom:1px solid #20263a;}
   .carItem:hover{background:var(--rowHover)}
@@ -57,7 +57,6 @@
   .station{font-weight:600; overflow:hidden; text-overflow:ellipsis;}
   .plate{font-size:.9rem; color:#c6cfdb; margin-left:auto; padding-left:.6rem;}
 
-  /* タイムライン（左パディングを打ち消してヘッダと原点一致） */
   .timeline{position: relative; margin-top:.4rem; height:34px; overflow-x:auto; overflow-y:hidden; touch-action: pan-x; -webkit-overflow-scrolling: touch;
             margin-left: calc(-1 * var(--sidePad)); margin-right: calc(-1 * var(--sidePad)); padding: 0 var(--sidePad);}
   .timeline::-webkit-scrollbar{height:8px}
@@ -69,6 +68,7 @@
     background:
       repeating-linear-gradient(to right, rgba(255,255,255,.10) 0 1px, transparent 1px 15px),
       repeating-linear-gradient(to right, transparent 0 58px, rgba(255,255,255,.30) 58px 60px);
+    background-position-x: 0px;
   }
 
   .empty{padding:2rem; text-align:center; color:var(--muted); border-top:1px dashed #2a3044;}
@@ -101,7 +101,7 @@
       <span><i class="dot buffer"></i>ブランク</span>
       <span><i class="dot now"></i>現在</span>
     </div>
-    <div class="ver">v1g</div>
+    <div class="ver">v1h</div>
   </div>
   <div class="toolbar" style="border-top:1px solid #20263a">
     <button class="pill" id="addCarBtn">車両追加</button>
@@ -173,7 +173,7 @@
 (() => {
   const STORAGE_KEY = 'sched-chofu-v1';
   const SLOT_MIN = 30, HORIZON_H = 72, SLOT_COUNT = (HORIZON_H*60)/SLOT_MIN;
-  const slotWidth = 30;
+  const slotWidth = 30, GRID_PX = 60;
   let state = loadState(), selectedId = null;
   let windowStart = floorToSlot(new Date()), windowEnd = new Date(windowStart.getTime() + HORIZON_H*3600*1000);
 
@@ -199,6 +199,7 @@
     placeNowLines(); document.getElementById('windowLabel').textContent = `${fmt(windowStart)} 〜 ${fmt(windowEnd)}`;
     const header = document.getElementById('hourScale'); const h = Math.ceil(header.getBoundingClientRect().height) + 12;
     document.documentElement.style.setProperty('--scaleSpacerH', h + 'px');
+    syncGridPhase(header.scrollLeft);
   }
 
   function render(){
@@ -246,9 +247,23 @@
   }
   setInterval(placeNowLines, 60*1000);
 
+  // --- scroll sync & grid phase alignment ---
+  function syncGridPhase(x){
+    const phase = -(Math.round(x) % GRID_PX) + 'px 0px';
+    document.getElementById('scaleInner').style.backgroundPosition = phase;
+    document.querySelectorAll('.gridOverlay').forEach(g=> g.style.backgroundPosition = phase);
+  }
+
   function setupScrollSync(){
     const header = document.getElementById('hourScale'), timelines = document.querySelectorAll('.timeline'); let lock = false;
-    const syncAll = (src) => { if(lock) return; lock = true; const x = src.scrollLeft; if(src!==header) header.scrollLeft = x; timelines.forEach(el=>{ if(el!==src) el.scrollLeft = x; }); lock = false; };
+    const syncAll = (src) => {
+      if(lock) return; lock = true;
+      const x = Math.round(src.scrollLeft); // 1px刻みに正規化（iOSのサブピクセル差異対策）
+      if(src!==header) header.scrollLeft = x;
+      timelines.forEach(el=>{ if(el!==src) el.scrollLeft = x; });
+      syncGridPhase(x);
+      lock = false;
+    };
     header.onscroll = ()=> syncAll(header); timelines.forEach(el=> el.onscroll = ()=> syncAll(el));
   }
 
@@ -317,7 +332,6 @@
         const s=new Date(document.getElementById('resvStart').value), e=new Date(document.getElementById('resvEnd').value);
         snapTo15(s); snapTo15(e);
         if(!(s&&e) || e<=s){ alert('時刻を確認してね。'); return; }
-        // 変更は一旦元から削除して新しい先へ追加
         car.reservations.splice(idx,1); (dest||car).reservations.push({start:s.toISOString(), end:e.toISOString()});
         saveState(); render(); } }, {once:true}); }, {once:true});
   });
