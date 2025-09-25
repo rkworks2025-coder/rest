@@ -3,12 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>スケジュール管理（調布 72h） v1f</title>
+<title>スケジュール管理（調布 72h） v1g</title>
 <style>
   :root{
     --bg:#0f1115; --card:#171a21; --panel:#1d2130; --text:#e9edf1; --muted:#a8b0bb;
-    --accent:#ff8a00; --free:#2a73ff; --busy:#ff5b93; --buffer:#8b93a6; --grid:#2a2f3d; --now:#ffd54a;
+    --accent:#ff8a00; --free:#2a73ff; --busy:#ff5b93; --buffer:#8b93a6; --now:#ffd54a;
     --rowHover:#242a3a; --selected:#2b3550; --scaleH:40px; --scaleSpacerH: 56px;
+    --sidePad:.9rem;
   }
   html,body{height:100%}
   body{margin:0; background:var(--bg); color:var(--text);
@@ -34,27 +35,31 @@
   .wrap{padding:1rem;}
   .board{background:var(--card); border:1px solid #20263a; border-radius:.8rem; overflow:hidden; position:relative;}
 
+  /* sticky 時間スケール（行と同じ原点に合わせるため左右パディングなし）*/
   .rightHeader{background:#141824; border-bottom:1px solid #20263a; position:sticky; top: 3.4rem; z-index:6; overflow:auto;}
   .scaleInner{
     position:relative; height:var(--scaleH); display:flex;
     background:
       repeating-linear-gradient(to right, rgba(255,255,255,.08) 0 1px, transparent 1px 15px),
-      repeating-linear-gradient(to right, transparent 0 58px, rgba(255,255,255,.28) 58px 60px);
+      repeating-linear-gradient(to right, transparent 0 58px, rgba(255,255,255,.30) 58px 60px); /* 毎時太線 */
   }
   .scaleLabel{position:absolute; top:4px; transform:translateX(-50%); font-size:.8rem; color:var(--muted); white-space:nowrap;}
   .scaleDay{position:absolute; top:22px; transform:translateX(-50%); font-size:.75rem; color:#90a0b3;}
 
+  /* 車両リスト */
   .list{max-height: calc(100vh - 210px); overflow: auto; -webkit-overflow-scrolling: touch; position: relative;}
-  .list::before{ content:""; display:block; height: var(--scaleSpacerH); }
+  .list::before{ content:""; display:block; height: var(--scaleSpacerH); } /* 上部スペーサー */
 
-  .carItem{padding:.55rem .9rem .7rem; border-bottom:1px solid #20263a;}
+  .carItem{padding:.55rem var(--sidePad) .7rem; border-bottom:1px solid #20263a;}
   .carItem:hover{background:var(--rowHover)}
   .carItem.selected{background:var(--selected)}
   .info{display:flex; align-items:center; gap:.6rem; white-space:nowrap; overflow:hidden;}
   .station{font-weight:600; overflow:hidden; text-overflow:ellipsis;}
   .plate{font-size:.9rem; color:#c6cfdb; margin-left:auto; padding-left:.6rem;}
 
-  .timeline{position: relative; margin-top:.4rem; height:34px; overflow-x:auto; overflow-y:hidden; touch-action: pan-x; -webkit-overflow-scrolling: touch;}
+  /* タイムライン（左パディングを打ち消してヘッダと原点一致） */
+  .timeline{position: relative; margin-top:.4rem; height:34px; overflow-x:auto; overflow-y:hidden; touch-action: pan-x; -webkit-overflow-scrolling: touch;
+            margin-left: calc(-1 * var(--sidePad)); margin-right: calc(-1 * var(--sidePad)); padding: 0 var(--sidePad);}
   .timeline::-webkit-scrollbar{height:8px}
   .timelineInner{position:relative; height:34px; background: repeating-linear-gradient(to right, #151a26 0 29px, #1e2433 29px 30px);}
   .slot{width:30px; height:16px; border-radius:3px; display:inline-block; vertical-align:middle;}
@@ -96,7 +101,7 @@
       <span><i class="dot buffer"></i>ブランク</span>
       <span><i class="dot now"></i>現在</span>
     </div>
-    <div class="ver">v1f</div>
+    <div class="ver">v1g</div>
   </div>
   <div class="toolbar" style="border-top:1px solid #20263a">
     <button class="pill" id="addCarBtn">車両追加</button>
@@ -123,6 +128,7 @@
   <p class="muted" style="margin:.4rem 0 0">※ 試作版：データはブラウザの <b>localStorage</b> に保存（キー: <code>sched-chofu-v1</code>）。</p>
 </div>
 
+<!-- 予定ダイアログ -->
 <dialog id="resvDlg"><div class="dlgHead">予定の入力</div>
   <form method="dialog" id="resvForm"><div class="dlgBody">
     <div class="dlgRow"><label>対象車両</label><select id="resvCarSelect"></select></div>
@@ -166,7 +172,7 @@
 <script>
 (() => {
   const STORAGE_KEY = 'sched-chofu-v1';
-  const SLOT_MIN = 30, HORIZON_H = 72, SLOT_COUNT = (HORIZON_H*60)/SLOT_MIN, BUFFER_MIN = 15;
+  const SLOT_MIN = 30, HORIZON_H = 72, SLOT_COUNT = (HORIZON_H*60)/SLOT_MIN;
   const slotWidth = 30;
   let state = loadState(), selectedId = null;
   let windowStart = floorToSlot(new Date()), windowEnd = new Date(windowStart.getTime() + HORIZON_H*3600*1000);
@@ -269,7 +275,7 @@
       const opt=document.createElement('option'); opt.value=idx; opt.textContent=`${fmt(s)} 〜 ${fmt(e)}`; list.appendChild(opt); });
   }
 
-  function snapTo15(dt){ const m = dt.getMinutes(); const q = Math.round(m/15)*15 % 60; dt.setMinutes(q); return dt; }
+  function snapTo15(dt){ const m = dt.getMinutes(); const q = Math.round(m/15)*15 % 60; dt.setMinutes(q); dt.setSeconds(0,0); return dt; }
   function setMinute(input, sel){ const v = new Date(input.value || new Date()); v.setMinutes(parseInt(sel.value,10)); v.setSeconds(0,0); input.value = toLocalInputValue(v); }
   function syncSelWithInput(input, sel){ const m = (new Date(input.value)).getMinutes(); sel.value = (m - (m%15)).toString(); }
   function initMinuteControls(){
@@ -288,15 +294,14 @@
   });
   document.getElementById('removeCarBtn').addEventListener('click', ()=>{
     if(!selectedId){ alert('削除する車両を選択してね。'); return; } const car = state.cars.find(c=>c.id===selectedId);
-    if(!confirm(`本当に削除する？
-${car.station}｜${car.plate}`)) return; state.cars = state.cars.filter(c=>c.id!==selectedId); selectedId=null; saveState(); render(); updateCarSelects();
+    if(!confirm(`本当に削除する？\n${car.station}｜${car.plate}`)) return; state.cars = state.cars.filter(c=>c.id!==selectedId); selectedId=null; saveState(); render(); updateCarSelects();
   });
   document.getElementById('addResvBtn').addEventListener('click', ()=>{
     const dlg=document.getElementById('resvDlg'); updateCarSelects(); if(selectedId){ document.getElementById('resvCarSelect').value = selectedId; }
     document.getElementById('resvStart').value = toLocalInputValue(windowStart); document.getElementById('resvEnd').value = toLocalInputValue(addMinutes(windowStart,120));
     dlg.showModal(); initMinuteControls();
     dlg.addEventListener('close', ()=>{ if(dlg.returnValue==='ok'){ const carId=parseInt(document.getElementById('resvCarSelect').value,10), car=state.cars.find(c=>c.id===carId);
-      const s=fromLocalInputValue(document.getElementById('resvStart').value), e=fromLocalInputValue(document.getElementById('resvEnd').value);
+      const s=new Date(document.getElementById('resvStart').value), e=new Date(document.getElementById('resvEnd').value);
       snapTo15(s); snapTo15(e);
       if(!car || !(s && e) || e<=s){ alert('時刻を確認してね。'); return; } car.reservations.push({start:s.toISOString(), end:e.toISOString()}); saveState(); render(); } }, {once:true});
   });
@@ -308,14 +313,14 @@ ${car.station}｜${car.plate}`)) return; state.cars = state.cars.filter(c=>c.id!
       const dlg=document.getElementById('resvDlg'); updateCarSelects(); document.getElementById('resvCarSelect').value=carId;
       document.getElementById('resvStart').value=toLocalInputValue(new Date(target.start)); document.getElementById('resvEnd').value=toLocalInputValue(new Date(target.end));
       dlg.showModal(); initMinuteControls();
-      dlg.addEventListener('close', ()=>{ if(dlg.returnValue==='ok'){ const cid=parseInt(document.getElementById('resvCarSelect').value,10), dest=state.cars.find(c=>id===cid);
-        const s=fromLocalInputValue(document.getElementById('resvStart').value), e=fromLocalInputValue(document.getElementById('resvEnd').value);
+      dlg.addEventListener('close', ()=>{ if(dlg.returnValue==='ok'){ const cid=parseInt(document.getElementById('resvCarSelect').value,10), dest=state.cars.find(c=>c.id===cid);
+        const s=new Date(document.getElementById('resvStart').value), e=new Date(document.getElementById('resvEnd').value);
         snapTo15(s); snapTo15(e);
-        if(!(s&&e) || e<=s){ alert('時刻を確認してね。'); return; } // 修正: car->destに移動
-        // 変更は一旦削除して追加
-      } }, {once:true}); }, {once:true});
+        if(!(s&&e) || e<=s){ alert('時刻を確認してね。'); return; }
+        // 変更は一旦元から削除して新しい先へ追加
+        car.reservations.splice(idx,1); (dest||car).reservations.push({start:s.toISOString(), end:e.toISOString()});
+        saveState(); render(); } }, {once:true}); }, {once:true});
   });
-
   document.getElementById('delResvBtn').addEventListener('click', ()=>{
     const pick=document.getElementById('pickDlg'); document.getElementById('pickTitle').textContent='予定を選択（削除）';
     updateCarSelects(); updatePickResvList(); document.getElementById('pickCarSelect').onchange=updatePickResvList; pick.showModal();
