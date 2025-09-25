@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>スケジュール管理（調布 72h） v1i</title>
+<title>スケジュール管理（調布 72h） v1j</title>
 <style>
   :root{
     --bg:#0f1115; --card:#171a21; --panel:#1d2130; --text:#e9edf1; --muted:#a8b0bb;
@@ -35,12 +35,13 @@
   .wrap{padding:1rem;}
   .board{background:var(--card); border:1px solid #20263a; border-radius:.8rem; overflow:hidden; position:relative;}
 
-  /* sticky 時間スケール（背景グリッドは出さず、ラベルのみ） */
-  .rightHeader{background:#141824; border-bottom:1px solid #20263a; position:sticky; top: 3.4rem; z-index:6; overflow:auto;}
-  .rightHeader::-webkit-scrollbar{height:8px}
-  .scaleInner{ position:relative; height:var(--scaleH); }
+  /* ヘッダー（スクロールは自身はしない。中のscaleInnerをJSで平行移動） */
+  .rightHeader{background:#141824; border-bottom:1px solid #20263a; position:sticky; top: 3.4rem; z-index:6; overflow:hidden;}
+  .scaleInner{ position:relative; height:var(--scaleH); will-change: transform; }
   .scaleLabel{position:absolute; top:4px; transform:translateX(-50%); font-size:.8rem; color:var(--muted); white-space:nowrap;}
   .scaleDay{position:absolute; top:22px; transform:translateX(-50%); font-size:.75rem; color:#90a0b3;}
+  .scaleTicks{ position:absolute; inset:0; pointer-events:none; }
+  .scaleTicks .h{ position:absolute; top:0; bottom:0; width:2px; background:rgba(255,255,255,.30); }
 
   .list{max-height: calc(100vh - 210px); overflow: auto; -webkit-overflow-scrolling: touch; position: relative;}
   .list::before{ content:""; display:block; height: var(--scaleSpacerH); }
@@ -55,15 +56,14 @@
   .timeline{position: relative; margin-top:.4rem; height:34px; overflow-x:auto; overflow-y:hidden; touch-action: pan-x; -webkit-overflow-scrolling: touch;
             margin-left: calc(-1 * var(--sidePad)); margin-right: calc(-1 * var(--sidePad)); padding: 0 var(--sidePad);}
   .timeline::-webkit-scrollbar{height:8px}
-  .timelineInner{position:relative; height:34px; background: repeating-linear-gradient(to right, #151a26 0 29px, #1e2433 29px 30px);}
+  .timelineInner{position:relative; height:34px;
+    background: repeating-linear-gradient(to right, #151a26 0 29px, #1e2433 29px 30px);} /* 30pxごとの薄い帯 */
   .slot{width:30px; height:16px; border-radius:3px; display:inline-block; vertical-align:middle;}
   .slot.free{background:var(--free)} .slot.busy{background:var(--busy)} .slot.buffer{background:var(--buffer)}
   .nowLine{position:absolute; top:0; bottom:0; width:2px; background:var(--now); pointer-events:none; opacity:.9;}
-  .gridOverlay{position:absolute; inset:0; pointer-events:none;
-    background:
-      repeating-linear-gradient(to right, rgba(255,255,255,.10) 0 1px, transparent 1px 15px),
-      repeating-linear-gradient(to right, transparent 0 58px, rgba(255,255,255,.30) 58px 60px);
-  }
+  .hourGuides{ position:absolute; inset:0; pointer-events:none; }
+  .hourGuides .h{ position:absolute; top:0; bottom:0; width:2px; background:rgba(255,255,255,.30); }
+  .hourGuides .h.big{ background:rgba(255,255,255,.35); } /* 強調（見た目同じでもクラス残し） */
 
   .empty{padding:2rem; text-align:center; color:var(--muted); border-top:1px dashed #2a3044;}
 
@@ -95,7 +95,7 @@
       <span><i class="dot buffer"></i>ブランク</span>
       <span><i class="dot now"></i>現在</span>
     </div>
-    <div class="ver">v1i</div>
+    <div class="ver">v1j</div>
   </div>
   <div class="toolbar" style="border-top:1px solid #20263a">
     <button class="pill" id="addCarBtn">車両追加</button>
@@ -114,7 +114,11 @@
 
 <div class="wrap">
   <div class="board">
-    <div class="rightHeader" id="hourScale"><div class="scaleInner" id="scaleInner"></div></div>
+    <div class="rightHeader" id="hourScale">
+      <div class="scaleInner" id="scaleInner">
+        <div class="scaleTicks" id="scaleTicks"></div>
+      </div>
+    </div>
     <div class="list" id="list"></div>
     <div class="empty" id="emptyMsg" style="display:none">車両を追加してね。「車両追加」→ 予定は「登録（予定）」で入力。</div>
   </div>
@@ -167,7 +171,7 @@
 (() => {
   const STORAGE_KEY = 'sched-chofu-v1';
   const SLOT_MIN = 30, HORIZON_H = 72, SLOT_COUNT = (HORIZON_H*60)/SLOT_MIN;
-  const slotWidth = 30, GRID_PX = 60;
+  const slotWidth = 30;
   let state = loadState(), selectedId = null;
   let windowStart = floorToSlot(new Date()), windowEnd = new Date(windowStart.getTime() + HORIZON_H*3600*1000);
 
@@ -184,12 +188,17 @@
 
   function renderScale(){
     const wrap = document.getElementById('scaleInner'); wrap.innerHTML = ''; wrap.style.width = (SLOT_COUNT*slotWidth)+'px';
+    // 時刻ラベル
     for(let i=0;i<=SLOT_COUNT;i++){
       const t = addMinutes(windowStart, i*SLOT_MIN), x = i*slotWidth;
       if(t.getMinutes()===0){ const lbl = document.createElement('div'); lbl.className='scaleLabel'; lbl.style.left=x+'px'; lbl.textContent=`${('0'+t.getHours()).slice(-2)}:00`; wrap.appendChild(lbl); }
       if(t.getHours()===0 && t.getMinutes()===0){ const day = document.createElement('div'); day.className='scaleDay'; day.style.left=x+'px'; day.textContent = `${t.getMonth()+1}/${t.getDate()}（${'日月火水木金土'[t.getDay()]}）`; wrap.appendChild(day); }
     }
-    placeNowLines(); document.getElementById('windowLabel').textContent = `${fmt(windowStart)} 〜 ${fmt(windowEnd)}`;
+    // ヘッダーの縦線（毎時）
+    const ticks = document.getElementById('scaleTicks'); ticks.innerHTML='';
+    for(let i=0;i<=HORIZON_H;i++){ const x=i*slotWidth*2; const line=document.createElement('div'); line.className='h'; line.style.left=x+'px'; ticks.appendChild(line); }
+    placeNowLines();
+    document.getElementById('windowLabel').textContent = `${fmt(windowStart)} 〜 ${fmt(windowEnd)}`;
     const header = document.getElementById('hourScale'); const h = Math.ceil(header.getBoundingClientRect().height) + 12;
     document.documentElement.style.setProperty('--scaleSpacerH', h + 'px');
   }
@@ -208,7 +217,10 @@
       const inner = document.createElement('div'); inner.className='timelineInner'; inner.style.width = (SLOT_COUNT*30)+'px';
       for(let i=0;i<SLOT_COUNT;i++){ const slot = document.createElement('span'); slot.className='slot'; inner.appendChild(slot); }
       const now = document.createElement('div'); now.className='nowLine'; inner.appendChild(now);
-      const grid = document.createElement('div'); grid.className='gridOverlay'; inner.appendChild(grid);
+      // 行ごとの「毎時」縦線（ヘッダーと同じ位置）
+      const guides = document.createElement('div'); guides.className='hourGuides';
+      for(let i=0;i<=HORIZON_H;i++){ const x=i*slotWidth*2; const g=document.createElement('div'); g.className='h big'; g.style.left=x+'px'; guides.appendChild(g); }
+      inner.appendChild(guides);
       tl.appendChild(inner);
       item.appendChild(info); item.appendChild(tl); list.appendChild(item);
       paintTimeline(inner, car.reservations);
@@ -239,11 +251,18 @@
   }
   setInterval(placeNowLines, 60*1000);
 
+  // スクロール同期：ヘッダーはtransformで追従（別スクロールを持たない）
   function setupScrollSync(){
-    const header = document.getElementById('hourScale'), timelines = document.querySelectorAll('.timeline'); let lock = false;
-    const syncAll = (src) => { if(lock) return; lock = true; const x = Math.round(src.scrollLeft);
-      if(src!==header) header.scrollLeft = x; timelines.forEach(el=>{ if(el!==src) el.scrollLeft = x; }); lock = false; };
-    header.onscroll = ()=> syncAll(header); timelines.forEach(el=> el.onscroll = ()=> syncAll(el));
+    const headerInner = document.getElementById('scaleInner'), timelines = document.querySelectorAll('.timeline'); let lock = false;
+    const syncAll = (src) => {
+      if(lock) return; lock = true;
+      const x = Math.round(src.scrollLeft);
+      headerInner.style.transform = `translateX(${-x}px)`;
+      timelines.forEach(el=>{ if(el!==src) el.scrollLeft = x; });
+      lock = false;
+    };
+    // 初期：最初のタイムラインを主として使う
+    timelines.forEach(el=> el.onscroll = ()=> syncAll(el));
   }
 
   function enableSmartPan(timelineEl){
@@ -328,6 +347,7 @@
     localStorage.removeItem(STORAGE_KEY); state=loadState(); selectedId=null; renderScale(); render(); updateCarSelects(); });
   document.getElementById('toTopBtn').addEventListener('click', ()=>{ document.getElementById('list').scrollTo({top:0, behavior:'smooth'}); });
 
+  // 初期描画
   renderScale(); render(); updateCarSelects();
 })();
 </script>
