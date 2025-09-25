@@ -3,19 +3,20 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>スケジュール管理（調布 72h） v1j</title>
+<title>スケジュール管理（調布 72h） v2a</title>
 <style>
   :root{
     --bg:#0f1115; --card:#171a21; --panel:#1d2130; --text:#e9edf1; --muted:#a8b0bb;
     --accent:#ff8a00; --free:#2a73ff; --busy:#ff5b93; --buffer:#8b93a6; --now:#ffd54a;
-    --rowHover:#242a3a; --selected:#2b3550; --scaleH:40px; --scaleSpacerH: 56px;
-    --sidePad:.9rem;
+    --rowHover:#242a3a; --selected:#2b3550;
+    --scaleH:40px; --rowH:54px;
+    --sidePad:.9rem; --grid15:30px; --grid60:60px;
   }
   html,body{height:100%}
   body{margin:0; background:var(--bg); color:var(--text);
        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic", Arial, sans-serif;}
 
-  header{position:sticky; top:0; z-index:10; background:linear-gradient(0deg, rgba(15,17,21,.85), rgba(15,17,21,.95));
+  header{position:sticky; top:0; z-index:10; background:linear-gradient(0deg, rgba(15,17,21,.88), rgba(15,17,21,.96));
          border-bottom:1px solid #23293a; backdrop-filter: blur(6px);}
   .toolbar{display:flex; gap:.5rem; align-items:center; padding:.75rem 1rem; flex-wrap:wrap;}
   .title{font-weight:700; letter-spacing:.02em; margin-right:auto;}
@@ -34,38 +35,41 @@
 
   .wrap{padding:1rem;}
   .board{background:var(--card); border:1px solid #20263a; border-radius:.8rem; overflow:hidden; position:relative;}
+  .grid{display:grid; grid-template-columns: 280px 1fr;}
 
-  /* ヘッダー（スクロールは自身はしない。中のscaleInnerをJSで平行移動） */
-  .rightHeader{background:#141824; border-bottom:1px solid #20263a; position:sticky; top: 3.4rem; z-index:6; overflow:hidden;}
-  .scaleInner{ position:relative; height:var(--scaleH); will-change: transform; }
-  .scaleLabel{position:absolute; top:4px; transform:translateX(-50%); font-size:.8rem; color:var(--muted); white-space:nowrap;}
+  /* 左列（ステーション/ナンバー） */
+  .leftCol{border-right:1px solid #20263a; background:#141824;}
+  .leftHeader{height:var(--scaleH); border-bottom:1px solid #20263a;}
+  .leftList{max-height: calc(100vh - 230px); overflow: auto; -webkit-overflow-scrolling: touch;}
+  .leftItem{display:flex; align-items:center; gap:.6rem; height:var(--rowH); padding:0 var(--sidePad); border-bottom:1px solid #20263a;}
+  .leftItem:hover{background:var(--rowHover)}
+  .station{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .plate{font-size:.9rem; color:#c6cfdb; margin-left:auto; padding-left:.6rem; white-space:nowrap;}
+
+  /* 右列（時間スケール＋タイムライン）：横スクロールはこのpaneが唯一 */
+  .rightCol{position:relative;}
+  .pane{overflow-x:auto; -webkit-overflow-scrolling: touch; position:relative;}
+  .timeHeader{position:sticky; top: 3.4rem; z-index:6; background:#141824; border-bottom:1px solid #20263a;}
+  .scaleWide{position:relative; height:var(--scaleH);}
+  .scaleLabel{position:absolute; top:4px; transform:translateX(-50%); font-size:.8rem; color:#cfe0ff; white-space:nowrap;}
   .scaleDay{position:absolute; top:22px; transform:translateX(-50%); font-size:.75rem; color:#90a0b3;}
-  .scaleTicks{ position:absolute; inset:0; pointer-events:none; }
-  .scaleTicks .h{ position:absolute; top:0; bottom:0; width:2px; background:rgba(255,255,255,.30); }
+  .scaleTicks .h{ position:absolute; top:0; bottom:0; width:2px; background:rgba(255,255,255,.35); }
+  .scaleTicks{position:absolute; inset:0; pointer-events:none;}
 
-  .list{max-height: calc(100vh - 210px); overflow: auto; -webkit-overflow-scrolling: touch; position: relative;}
-  .list::before{ content:""; display:block; height: var(--scaleSpacerH); }
-
-  .carItem{padding:.55rem var(--sidePad) .7rem; border-bottom:1px solid #20263a;}
-  .carItem:hover{background:var(--rowHover)}
-  .carItem.selected{background:var(--selected)}
-  .info{display:flex; align-items:center; gap:.6rem; white-space:nowrap; overflow:hidden;}
-  .station{font-weight:600; overflow:hidden; text-overflow:ellipsis;}
-  .plate{font-size:.9rem; color:#c6cfdb; margin-left:auto; padding-left:.6rem;}
-
-  .timeline{position: relative; margin-top:.4rem; height:34px; overflow-x:auto; overflow-y:hidden; touch-action: pan-x; -webkit-overflow-scrolling: touch;
-            margin-left: calc(-1 * var(--sidePad)); margin-right: calc(-1 * var(--sidePad)); padding: 0 var(--sidePad);}
-  .timeline::-webkit-scrollbar{height:8px}
-  .timelineInner{position:relative; height:34px;
-    background: repeating-linear-gradient(to right, #151a26 0 29px, #1e2433 29px 30px);} /* 30pxごとの薄い帯 */
-  .slot{width:30px; height:16px; border-radius:3px; display:inline-block; vertical-align:middle;}
+  .rightList{max-height: calc(100vh - 230px); overflow:auto; border-bottom:1px solid #20263a;}
+  .row{height:var(--rowH); display:flex; align-items:center; padding:0 var(--sidePad); border-bottom:1px solid #20263a;}
+  .timeline{position: relative; height:28px; width:100%; overflow:visible;}
+  .barSlots{position:absolute; inset:0;
+    background:
+      repeating-linear-gradient(to right, #151a26 0 calc(var(--grid15) - 1px), #1e2433 calc(var(--grid15) - 1px) var(--grid15)); /* 15分帯 */
+  }
+  .hourLines{position:absolute; inset:0; pointer-events:none;}
+  .hourLines .h{ position:absolute; top:0; bottom:0; width:2px; background:rgba(255,255,255,.35); }
+  .slot{position:absolute; top:6px; height:16px; border-radius:3px; display:block; }
   .slot.free{background:var(--free)} .slot.busy{background:var(--busy)} .slot.buffer{background:var(--buffer)}
-  .nowLine{position:absolute; top:0; bottom:0; width:2px; background:var(--now); pointer-events:none; opacity:.9;}
-  .hourGuides{ position:absolute; inset:0; pointer-events:none; }
-  .hourGuides .h{ position:absolute; top:0; bottom:0; width:2px; background:rgba(255,255,255,.30); }
-  .hourGuides .h.big{ background:rgba(255,255,255,.35); } /* 強調（見た目同じでもクラス残し） */
+  .nowLine{position:absolute; top:0; bottom:0; width:2px; background:var(--now); pointer-events:none; opacity:.95;}
 
-  .empty{padding:2rem; text-align:center; color:var(--muted); border-top:1px dashed #2a3044;}
+  .muted{color:var(--muted); font-size:.88rem; margin:.5rem 0 0;}
 
   dialog{border:none; border-radius:.8rem; background:#121622; color:#e9edf1; width:min(560px, 94vw);
          box-shadow:0 20px 50px rgba(0,0,0,.55), 0 0 0 1px #1f2636 inset;}
@@ -79,10 +83,8 @@
   .minRow{display:grid; grid-template-columns:1fr 1fr; gap:.9rem;}
   .minRow .mini{font-size:.85rem; color:var(--muted); margin-top:-.2rem}
   .dlgFoot{padding:1rem 1.2rem; border-top:1px solid #232a3d; display:flex; gap:.6rem; justify-content:flex-end}
-  .muted{color:var(--muted); font-size:.88rem}
 
-  .toTop{position: sticky; bottom: 1rem; margin-left: auto; display: inline-flex; align-items: center; gap: .4rem;
-    background: #232c45; border: 1px solid #2f3a5a; color: #cfe0ff; padding: .45rem .7rem; border-radius: .6rem; cursor: pointer;}
+  .controls{display:flex; gap:.5rem; align-items:center; padding:.75rem 1rem; border-top:1px solid #20263a}
 </style>
 </head>
 <body>
@@ -95,7 +97,7 @@
       <span><i class="dot buffer"></i>ブランク</span>
       <span><i class="dot now"></i>現在</span>
     </div>
-    <div class="ver">v1j</div>
+    <div class="ver">v2a</div>
   </div>
   <div class="toolbar" style="border-top:1px solid #20263a">
     <button class="pill" id="addCarBtn">車両追加</button>
@@ -114,16 +116,27 @@
 
 <div class="wrap">
   <div class="board">
-    <div class="rightHeader" id="hourScale">
-      <div class="scaleInner" id="scaleInner">
-        <div class="scaleTicks" id="scaleTicks"></div>
+    <div class="grid">
+      <div class="leftCol">
+        <div class="leftHeader"></div>
+        <div class="leftList" id="leftList"></div>
+      </div>
+      <div class="rightCol">
+        <div class="pane" id="pane">
+          <div class="timeHeader">
+            <div class="scaleWide" id="scaleWide">
+              <div class="scaleTicks" id="scaleTicks"></div>
+            </div>
+          </div>
+          <div class="rightList" id="rightList"></div>
+        </div>
       </div>
     </div>
-    <div class="list" id="list"></div>
-    <div class="empty" id="emptyMsg" style="display:none">車両を追加してね。「車両追加」→ 予定は「登録（予定）」で入力。</div>
   </div>
-  <div style="display:flex; margin-top:.6rem;"><button class="toTop" id="toTopBtn">↑ 上へ</button></div>
-  <p class="muted" style="margin:.4rem 0 0">※ 試作版：データはブラウザの <b>localStorage</b> に保存（キー: <code>sched-chofu-v1</code>）。</p>
+  <p class="muted">※ データは <b>localStorage</b>（キー: <code>sched-chofu-v2</code>）。</p>
+  <div class="controls">
+    <button class="pill" id="toTopBtn">↑ 上へ</button>
+  </div>
 </div>
 
 <!-- 予定ダイアログ -->
@@ -169,9 +182,11 @@
 
 <script>
 (() => {
-  const STORAGE_KEY = 'sched-chofu-v1';
+  const STORAGE_KEY = 'sched-chofu-v2';
   const SLOT_MIN = 30, HORIZON_H = 72, SLOT_COUNT = (HORIZON_H*60)/SLOT_MIN;
-  const slotWidth = 30;
+  const SLOT_W = 30; // 30px = 30分単位
+  const GRID15 = SLOT_W; // 15分×2=30px だが見た目は30pxピッチ
+  const GRID60 = SLOT_W * 2;
   let state = loadState(), selectedId = null;
   let windowStart = floorToSlot(new Date()), windowEnd = new Date(windowStart.getTime() + HORIZON_H*3600*1000);
 
@@ -186,97 +201,108 @@
   function addMinutes(dt,minutes){ return new Date(dt.getTime()+minutes*60*1000); }
   function overlap(aStart,aEnd,bStart,bEnd){ return (aStart<bEnd)&&(bStart<aEnd); }
 
-  function renderScale(){
-    const wrap = document.getElementById('scaleInner'); wrap.innerHTML = ''; wrap.style.width = (SLOT_COUNT*slotWidth)+'px';
-    // 時刻ラベル
-    for(let i=0;i<=SLOT_COUNT;i++){
-      const t = addMinutes(windowStart, i*SLOT_MIN), x = i*slotWidth;
-      if(t.getMinutes()===0){ const lbl = document.createElement('div'); lbl.className='scaleLabel'; lbl.style.left=x+'px'; lbl.textContent=`${('0'+t.getHours()).slice(-2)}:00`; wrap.appendChild(lbl); }
-      if(t.getHours()===0 && t.getMinutes()===0){ const day = document.createElement('div'); day.className='scaleDay'; day.style.left=x+'px'; day.textContent = `${t.getMonth()+1}/${t.getDate()}（${'日月火水木金土'[t.getDay()]}）`; wrap.appendChild(day); }
+  function renderHeader(){
+    const wide = document.getElementById('scaleWide');
+    wide.style.width = (SLOT_COUNT * SLOT_W)+'px';
+    wide.innerHTML = '<div class="scaleTicks" id="scaleTicks"></div>';
+    const ticks = document.getElementById('scaleTicks');
+    for(let i=0;i<=HORIZON_H;i++){
+      const x = i * GRID60;
+      const line = document.createElement('div'); line.className='h'; line.style.left = x + 'px'; ticks.appendChild(line);
+      const t = addMinutes(windowStart, i*60);
+      const lbl = document.createElement('div'); lbl.className='scaleLabel'; lbl.style.left = x + 'px'; lbl.textContent = ('0'+t.getHours()).slice(-2)+':00';
+      wide.appendChild(lbl);
+      if(t.getHours()===0){ const day = document.createElement('div'); day.className='scaleDay'; day.style.left=x+'px'; day.textContent = `${t.getMonth()+1}/${t.getDate()}（${'日月火水木金土'[t.getDay()]}）`; wide.appendChild(day); }
     }
-    // ヘッダーの縦線（毎時）
-    const ticks = document.getElementById('scaleTicks'); ticks.innerHTML='';
-    for(let i=0;i<=HORIZON_H;i++){ const x=i*slotWidth*2; const line=document.createElement('div'); line.className='h'; line.style.left=x+'px'; ticks.appendChild(line); }
-    placeNowLines();
     document.getElementById('windowLabel').textContent = `${fmt(windowStart)} 〜 ${fmt(windowEnd)}`;
-    const header = document.getElementById('hourScale'); const h = Math.ceil(header.getBoundingClientRect().height) + 12;
-    document.documentElement.style.setProperty('--scaleSpacerH', h + 'px');
   }
 
-  function render(){
-    const list = document.getElementById('list'), empty = document.getElementById('emptyMsg'); list.innerHTML='';
-    empty.style.display = state.cars.length===0 ? 'block' : 'none';
+  function renderRows(){
+    const rightList = document.getElementById('rightList');
+    const leftList  = document.getElementById('leftList');
+    rightList.innerHTML=''; leftList.innerHTML='';
     state.cars.forEach(car=>{
-      const item = document.createElement('div'); item.className = 'carItem' + (car.id===selectedId ? ' selected':'' );
-      item.addEventListener('click',()=>{ selectedId = car.id===selectedId ? null : car.id; render(); });
-      const info = document.createElement('div'); info.className='info';
-      const st = document.createElement('div'); st.className='station'; st.textContent = car.station;
-      const pl = document.createElement('div'); pl.className='plate';  pl.textContent = car.plate;
-      info.appendChild(st); info.appendChild(pl);
-      const tl = document.createElement('div'); tl.className='timeline';
-      const inner = document.createElement('div'); inner.className='timelineInner'; inner.style.width = (SLOT_COUNT*30)+'px';
-      for(let i=0;i<SLOT_COUNT;i++){ const slot = document.createElement('span'); slot.className='slot'; inner.appendChild(slot); }
-      const now = document.createElement('div'); now.className='nowLine'; inner.appendChild(now);
-      // 行ごとの「毎時」縦線（ヘッダーと同じ位置）
-      const guides = document.createElement('div'); guides.className='hourGuides';
-      for(let i=0;i<=HORIZON_H;i++){ const x=i*slotWidth*2; const g=document.createElement('div'); g.className='h big'; g.style.left=x+'px'; guides.appendChild(g); }
-      inner.appendChild(guides);
-      tl.appendChild(inner);
-      item.appendChild(info); item.appendChild(tl); list.appendChild(item);
-      paintTimeline(inner, car.reservations);
-      enableSmartPan(tl);
+      const leftItem = document.createElement('div'); leftItem.className='leftItem';
+      leftItem.innerHTML = `<div class="station">${car.station}</div><div class="plate">${car.plate}</div>`;
+      leftList.appendChild(leftItem);
+
+      const row = document.createElement('div'); row.className='row';
+      const timeline = document.createElement('div'); timeline.className='timeline';
+      const bars = document.createElement('div'); bars.className='barSlots'; bars.style.width = (SLOT_COUNT*SLOT_W)+'px';
+      const hours = document.createElement('div'); hours.className='hourLines';
+      for(let i=0;i<=HORIZON_H;i++){ const g=document.createElement('div'); g.className='h'; g.style.left=(i*GRID60)+'px'; hours.appendChild(g); }
+      const now = document.createElement('div'); now.className='nowLine';
+      timeline.appendChild(bars); timeline.appendChild(hours); timeline.appendChild(now);
+      row.appendChild(timeline); rightList.appendChild(row);
+
+      paintTimeline(timeline, car.reservations);
     });
-    setupScrollSync(); placeNowLines();
   }
 
-  function paintTimeline(inner, reservations){
-    const res = reservations.map(r=>({start:new Date(r.start), end:new Date(r.end)})), slots = inner.querySelectorAll('.slot');
-    for(let i=0;i<slots.length;i++){
-      const slotEl = slots[i], slotStart = addMinutes(windowStart, i*SLOT_MIN), slotEnd = addMinutes(slotStart, SLOT_MIN);
-      let cls = 'free';
-      for(const r of res){ if(overlap(slotStart, slotEnd, r.start, r.end)){ cls='busy'; break; } }
-      if(cls!=='busy'){ for(const r of res){ const pre0 = addMinutes(r.start, -15), pre1 = r.start, post0 = r.end, post1 = addMinutes(r.end, 15);
-        if(overlap(slotStart, slotEnd, pre0, pre1) || overlap(slotStart, slotEnd, post0, post1)){ cls='buffer'; break; } } }
-      slotEl.classList.add(cls);
-    }
+  function paintTimeline(timeline, reservations){
+    // 既存のスロットDOMを消す（hourLines等は残す）
+    timeline.querySelectorAll('.slot').forEach(el=> el.remove());
+    const width = SLOT_COUNT * SLOT_W;
+    const nowX = ((new Date() - windowStart) / (60*1000)) * (SLOT_W/30);
+    const nowLine = timeline.querySelector('.nowLine');
+    if(new Date() < windowStart || new Date() > windowEnd) nowLine.style.display='none';
+    else { nowLine.style.display='block'; nowLine.style.left = Math.max(0, Math.min(nowX, width))+'px'; }
+
+    const res = reservations.map(r=>({start:new Date(r.start), end:new Date(r.end)}));
+    // 30分ごとに free/busy/buffer を描かず、区間を矩形で描画（重ね順: busy > buffer > freeはベース背景）
+    res.forEach(r=>{
+      // busy
+      const xs = Math.max(0, ( (r.start - windowStart) / (60*1000) ) * (SLOT_W/30));
+      const xe = Math.max(0, ( (r.end   - windowStart) / (60*1000) ) * (SLOT_W/30));
+      if(xe>0 && xs < width){
+        const b = document.createElement('span'); b.className='slot busy';
+        b.style.left = Math.max(0, xs)+'px'; b.style.width = Math.min(width, xe) - Math.max(0, xs) +'px';
+        timeline.appendChild(b);
+      }
+      // buffer 前後15分
+      const preS = ( (new Date(r.start.getTime()-15*60*1000) - windowStart) / (60*1000) ) * (SLOT_W/30);
+      const preE = ( (r.start - windowStart) / (60*1000) ) * (SLOT_W/30);
+      const postS= ( (r.end   - windowStart) / (60*1000) ) * (SLOT_W/30);
+      const postE= ( (new Date(r.end.getTime()+15*60*1000) - windowStart) / (60*1000) ) * (SLOT_W/30);
+      [[preS, preE], [postS, postE]].forEach(([s,e])=>{
+        const ls = Math.max(0, s), le = Math.min(width, e);
+        if(le>ls){
+          const z = document.createElement('span'); z.className='slot buffer';
+          z.style.left = ls+'px'; z.style.width = (le-ls)+'px'; timeline.appendChild(z);
+        }
+      });
+    });
+  }
+
+  function renderAll(){
+    renderHeader(); renderRows(); syncHeights(); placeNowLines();
   }
 
   function placeNowLines(){
-    const now = new Date(), pos = ((now - windowStart) / (SLOT_MIN*60*1000)) * 30;
-    document.querySelectorAll('.timelineInner').forEach(inner=>{
-      const line = inner.querySelector('.nowLine');
-      if(now < windowStart || now > new Date(windowStart.getTime()+72*3600*1000)){ line.style.display='none'; }
-      else{ line.style.display='block'; line.style.left = Math.max(0, Math.min(pos, (SLOT_COUNT*30)))+'px'; }
+    document.querySelectorAll('.timeline').forEach(tl=>{
+      // repaint only the now line position
+      const width = SLOT_COUNT * SLOT_W;
+      const nowX = ((new Date() - windowStart) / (60*1000)) * (SLOT_W/30);
+      const nowLine = tl.querySelector('.nowLine');
+      if(new Date() < windowStart || new Date() > windowEnd) nowLine.style.display='none';
+      else { nowLine.style.display='block'; nowLine.style.left = Math.max(0, Math.min(nowX, width))+'px'; }
     });
   }
-  setInterval(placeNowLines, 60*1000);
+  setInterval(placeNowLines, 60000);
 
-  // スクロール同期：ヘッダーはtransformで追従（別スクロールを持たない）
-  function setupScrollSync(){
-    const headerInner = document.getElementById('scaleInner'), timelines = document.querySelectorAll('.timeline'); let lock = false;
-    const syncAll = (src) => {
-      if(lock) return; lock = true;
-      const x = Math.round(src.scrollLeft);
-      headerInner.style.transform = `translateX(${-x}px)`;
-      timelines.forEach(el=>{ if(el!==src) el.scrollLeft = x; });
-      lock = false;
-    };
-    // 初期：最初のタイムラインを主として使う
-    timelines.forEach(el=> el.onscroll = ()=> syncAll(el));
+  function syncHeights(){
+    // 左右の行高・件数は同じなので何もしなくても合う。モバイルのズレ対策で微調整可。
   }
 
-  function enableSmartPan(timelineEl){
-    const parentList = document.getElementById('list'); let sx=0, sy=0, sl=0, st=0, isActive=false, mode=null;
-    const onTouchStart = (e)=>{ const t = e.touches[0]; sx=t.clientX; sy=t.clientY; sl=timelineEl.scrollLeft; st=parentList.scrollTop; isActive=true; mode=null; };
-    const onTouchMove = (e)=>{ if(!isActive) return; const t=e.touches[0]; const dx=t.clientX-sx, dy=t.clientY-sy; if(mode===null){ mode = (Math.abs(dx)>Math.abs(dy)) ? 'x':'y'; }
-      if(mode==='x'){ timelineEl.scrollLeft = sl - dx; } else { parentList.scrollTop = st - dy; } e.preventDefault(); };
-    const onTouchEnd = ()=>{ isActive=false; };
-    timelineEl.addEventListener('touchstart', onTouchStart, {passive:false});
-    timelineEl.addEventListener('touchmove', onTouchMove, {passive:false});
-    timelineEl.addEventListener('touchend', onTouchEnd, {passive:false});
-    timelineEl.addEventListener('touchcancel', onTouchEnd, {passive:false});
-  }
+  // 縦スクロールの同期
+  (function setupVertSync(){
+    const L = document.getElementById('leftList'), R = document.getElementById('rightList'); let lock=false;
+    const sync = (src)=>{ if(lock) return; lock=true; if(src===L) R.scrollTop=L.scrollTop; else L.scrollTop=R.scrollTop; lock=false; };
+    L.addEventListener('scroll', ()=>sync(L)); R.addEventListener('scroll', ()=>sync(R));
+    document.getElementById('toTopBtn').addEventListener('click', ()=>{ L.scrollTo({top:0,behavior:'smooth'}); R.scrollTo({top:0,behavior:'smooth'}); });
+  })();
 
+  // 予定入出力UI
   function updateCarSelects(){
     const resvSelect = document.getElementById('resvCarSelect'), pickCarSelect = document.getElementById('pickCarSelect');
     [resvSelect, pickCarSelect].forEach(sel=>{ sel.innerHTML=''; state.cars.forEach(c=>{ const opt=document.createElement('option'); opt.value=c.id; opt.textContent=`${c.station}｜${c.plate}`; sel.appendChild(opt); }); if(selectedId) sel.value = selectedId; });
@@ -287,7 +313,6 @@
     car.reservations.slice().sort((a,b)=> new Date(a.start)-new Date(b.start)).forEach((r,idx)=>{ const s=new Date(r.start), e=new Date(r.end);
       const opt=document.createElement('option'); opt.value=idx; opt.textContent=`${fmt(s)} 〜 ${fmt(e)}`; list.appendChild(opt); });
   }
-
   function snapTo15(dt){ const m = dt.getMinutes(); const q = Math.round(m/15)*15 % 60; dt.setMinutes(q); dt.setSeconds(0,0); return dt; }
   function setMinute(input, sel){ const v = new Date(input.value || new Date()); v.setMinutes(parseInt(sel.value,10)); v.setSeconds(0,0); input.value = toLocalInputValue(v); }
   function syncSelWithInput(input, sel){ const m = (new Date(input.value)).getMinutes(); sel.value = (m - (m%15)).toString(); }
@@ -303,11 +328,11 @@
     const dlg=document.getElementById('carDlg'); document.getElementById('carDlgTitle').textContent='車両追加';
     document.getElementById('carStation').value=''; document.getElementById('carPlate').value=''; dlg.showModal();
     dlg.addEventListener('close', ()=>{ if(dlg.returnValue==='ok'){ const st=document.getElementById('carStation').value.trim(), pl=document.getElementById('carPlate').value.trim();
-      if(st && pl){ const id=++state.lastId; state.cars.push({id, station:st, plate:pl, reservations:[]}); selectedId=id; saveState(); render(); updateCarSelects(); } } }, {once:true});
+      if(st && pl){ const id=++state.lastId; state.cars.push({id, station:st, plate:pl, reservations:[]}); selectedId=id; saveState(); renderAll(); updateCarSelects(); } } }, {once:true});
   });
   document.getElementById('removeCarBtn').addEventListener('click', ()=>{
     if(!selectedId){ alert('削除する車両を選択してね。'); return; } const car = state.cars.find(c=>c.id===selectedId);
-    if(!confirm(`本当に削除する？\n${car.station}｜${car.plate}`)) return; state.cars = state.cars.filter(c=>c.id!==selectedId); selectedId=null; saveState(); render(); updateCarSelects();
+    if(!confirm(`本当に削除する？\n${car.station}｜${car.plate}`)) return; state.cars = state.cars.filter(c=>c.id!==selectedId); selectedId=null; saveState(); renderAll(); updateCarSelects();
   });
   document.getElementById('addResvBtn').addEventListener('click', ()=>{
     const dlg=document.getElementById('resvDlg'); updateCarSelects(); if(selectedId){ document.getElementById('resvCarSelect').value = selectedId; }
@@ -316,7 +341,7 @@
     dlg.addEventListener('close', ()=>{ if(dlg.returnValue==='ok'){ const carId=parseInt(document.getElementById('resvCarSelect').value,10), car=state.cars.find(c=>c.id===carId);
       const s=new Date(document.getElementById('resvStart').value), e=new Date(document.getElementById('resvEnd').value);
       snapTo15(s); snapTo15(e);
-      if(!car || !(s && e) || e<=s){ alert('時刻を確認してね。'); return; } car.reservations.push({start:s.toISOString(), end:e.toISOString()}); saveState(); render(); } }, {once:true});
+      if(!car || !(s && e) || e<=s){ alert('時刻を確認してね。'); return; } car.reservations.push({start:s.toISOString(), end:e.toISOString()}); saveState(); renderAll(); } }, {once:true});
   });
   document.getElementById('editResvBtn').addEventListener('click', ()=>{
     const pick=document.getElementById('pickDlg'); document.getElementById('pickTitle').textContent='予定を選択（変更）';
@@ -331,24 +356,23 @@
         snapTo15(s); snapTo15(e);
         if(!(s&&e) || e<=s){ alert('時刻を確認してね。'); return; }
         car.reservations.splice(idx,1); (dest||car).reservations.push({start:s.toISOString(), end:e.toISOString()});
-        saveState(); render(); } }, {once:true}); }, {once:true});
+        saveState(); renderAll(); } }, {once:true}); }, {once:true});
   });
   document.getElementById('delResvBtn').addEventListener('click', ()=>{
     const pick=document.getElementById('pickDlg'); document.getElementById('pickTitle').textContent='予定を選択（削除）';
     updateCarSelects(); updatePickResvList(); document.getElementById('pickCarSelect').onchange=updatePickResvList; pick.showModal();
     pick.addEventListener('close', ()=>{ if(pick.returnValue!=='ok') return; const carId=parseInt(document.getElementById('pickCarSelect').value,10), idx=parseInt(document.getElementById('pickResvSelect').value,10);
-      const car=state.cars.find(c=>c.id===carId); if(!car || isNaN(idx) || !car.reservations[idx]){ alert('削除対象の予定がないわ。'); return; } car.reservations.splice(idx,1); saveState(); render(); }, {once:true});
+      const car=state.cars.find(c=>c.id===carId); if(!car || isNaN(idx) || !car.reservations[idx]){ alert('削除対象の予定がないわ。'); return; } car.reservations.splice(idx,1); saveState(); renderAll(); }, {once:true});
   });
 
-  document.getElementById('shiftBackBtn').addEventListener('click', ()=>{ windowStart = addMinutes(windowStart, -720); windowEnd = addMinutes(windowEnd, -720); renderScale(); render(); });
-  document.getElementById('shiftFwdBtn').addEventListener('click', ()=>{ windowStart = addMinutes(windowStart, 720); windowEnd = addMinutes(windowEnd, 720); renderScale(); render(); });
-  document.getElementById('resetNowBtn').addEventListener('click', ()=>{ windowStart = floorToSlot(new Date()); windowEnd = addMinutes(windowStart, HORIZON_H*60); renderScale(); render(); });
+  document.getElementById('shiftBackBtn').addEventListener('click', ()=>{ windowStart = addMinutes(windowStart, -720); windowEnd = addMinutes(windowEnd, -720); renderAll(); });
+  document.getElementById('shiftFwdBtn').addEventListener('click', ()=>{ windowStart = addMinutes(windowStart, 720); windowEnd = addMinutes(windowEnd, 720); renderAll(); });
+  document.getElementById('resetNowBtn').addEventListener('click', ()=>{ windowStart = floorToSlot(new Date()); windowEnd = addMinutes(windowStart, HORIZON_H*60); renderAll(); });
   document.getElementById('clearAllBtn').addEventListener('click', ()=>{ if(!confirm('調布エリアの保存データをすべて初期化するわ。よい？')) return;
-    localStorage.removeItem(STORAGE_KEY); state=loadState(); selectedId=null; renderScale(); render(); updateCarSelects(); });
-  document.getElementById('toTopBtn').addEventListener('click', ()=>{ document.getElementById('list').scrollTo({top:0, behavior:'smooth'}); });
+    localStorage.removeItem(STORAGE_KEY); state=loadState(); selectedId=null; renderAll(); updateCarSelects(); });
 
-  // 初期描画
-  renderScale(); render(); updateCarSelects();
+  // 初期化
+  renderAll(); updateCarSelects();
 })();
 </script>
 </body>
