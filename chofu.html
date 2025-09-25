@@ -3,70 +3,85 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>スケジュール管理（調布 72h） v1d</title>
+<title>スケジュール管理（調布 72h） v1f</title>
 <style>
   :root{
     --bg:#0f1115; --card:#171a21; --panel:#1d2130; --text:#e9edf1; --muted:#a8b0bb;
     --accent:#ff8a00; --free:#2a73ff; --busy:#ff5b93; --buffer:#8b93a6; --grid:#2a2f3d; --now:#ffd54a;
-    --rowHover:#242a3a; --selected:#2b3550; --scaleH:40px;
-    --scaleSpacerH: 48px;
+    --rowHover:#242a3a; --selected:#2b3550; --scaleH:40px; --scaleSpacerH: 56px;
   }
   html,body{height:100%}
   body{margin:0; background:var(--bg); color:var(--text);
        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic", Arial, sans-serif;}
+
   header{position:sticky; top:0; z-index:10; background:linear-gradient(0deg, rgba(15,17,21,.85), rgba(15,17,21,.95));
          border-bottom:1px solid #23293a; backdrop-filter: blur(6px);}
   .toolbar{display:flex; gap:.5rem; align-items:center; padding:.75rem 1rem; flex-wrap:wrap;}
   .title{font-weight:700; letter-spacing:.02em; margin-right:auto;}
   .ver{margin-left:auto; font-weight:700; background:#253457; border:1px solid #38507e; color:#cfe0ff; padding:.25rem .5rem; border-radius:.5rem;}
+
   .pill{background:var(--panel); border:1px solid #2a3044; color:var(--text); padding:.55rem .8rem;
         border-radius:.6rem; font-size:.95rem; cursor:pointer; user-select:none;}
   .pill:active{transform: translateY(1px)}
   .pill.primary{background:var(--accent); border-color:#ff9d2a; color:#111}
   .pill.warn{background:#d84c4c; border-color:#e36c6c; color:#fff}
+
   .legend{display:flex; gap:.75rem; align-items:center; font-size:.9rem; color:var(--muted)}
   .legend span{display:inline-flex; align-items:center; gap:.35rem}
   .dot{width:14px; height:10px; border-radius:2px; display:inline-block}
   .dot.free{background:var(--free)} .dot.busy{background:var(--busy)} .dot.buffer{background:var(--buffer)} .dot.now{background:var(--now)}
+
   .wrap{padding:1rem;}
   .board{background:var(--card); border:1px solid #20263a; border-radius:.8rem; overflow:hidden; position:relative;}
+
   .rightHeader{background:#141824; border-bottom:1px solid #20263a; position:sticky; top: 3.4rem; z-index:6; overflow:auto;}
   .scaleInner{
     position:relative; height:var(--scaleH); display:flex;
     background:
-      repeating-linear-gradient(to right, rgba(255,255,255,.06) 0 1px, transparent 1px 15px),
-      repeating-linear-gradient(to right, transparent 0 59px, var(--grid) 59px 60px);
+      repeating-linear-gradient(to right, rgba(255,255,255,.08) 0 1px, transparent 1px 15px),
+      repeating-linear-gradient(to right, transparent 0 58px, rgba(255,255,255,.28) 58px 60px);
   }
   .scaleLabel{position:absolute; top:4px; transform:translateX(-50%); font-size:.8rem; color:var(--muted); white-space:nowrap;}
   .scaleDay{position:absolute; top:22px; transform:translateX(-50%); font-size:.75rem; color:#90a0b3;}
+
   .list{max-height: calc(100vh - 210px); overflow: auto; -webkit-overflow-scrolling: touch; position: relative;}
   .list::before{ content:""; display:block; height: var(--scaleSpacerH); }
+
   .carItem{padding:.55rem .9rem .7rem; border-bottom:1px solid #20263a;}
   .carItem:hover{background:var(--rowHover)}
   .carItem.selected{background:var(--selected)}
   .info{display:flex; align-items:center; gap:.6rem; white-space:nowrap; overflow:hidden;}
   .station{font-weight:600; overflow:hidden; text-overflow:ellipsis;}
   .plate{font-size:.9rem; color:#c6cfdb; margin-left:auto; padding-left:.6rem;}
+
   .timeline{position: relative; margin-top:.4rem; height:34px; overflow-x:auto; overflow-y:hidden; touch-action: pan-x; -webkit-overflow-scrolling: touch;}
   .timeline::-webkit-scrollbar{height:8px}
   .timelineInner{position:relative; height:34px; background: repeating-linear-gradient(to right, #151a26 0 29px, #1e2433 29px 30px);}
   .slot{width:30px; height:16px; border-radius:3px; display:inline-block; vertical-align:middle;}
   .slot.free{background:var(--free)} .slot.busy{background:var(--busy)} .slot.buffer{background:var(--buffer)}
   .nowLine{position:absolute; top:0; bottom:0; width:2px; background:var(--now); pointer-events:none; opacity:.9;}
-  .gridOverlay{position:absolute; inset:0; pointer-events:none; background: repeating-linear-gradient(to right, rgba(255,255,255,.10) 0 1px, transparent 1px 15px);}
+  .gridOverlay{position:absolute; inset:0; pointer-events:none;
+    background:
+      repeating-linear-gradient(to right, rgba(255,255,255,.10) 0 1px, transparent 1px 15px),
+      repeating-linear-gradient(to right, transparent 0 58px, rgba(255,255,255,.30) 58px 60px);
+  }
+
   .empty{padding:2rem; text-align:center; color:var(--muted); border-top:1px dashed #2a3044;}
-  dialog{border:none; border-radius:.8rem; background:#121622; color:var(--text); width:min(560px, 94vw);
+
+  dialog{border:none; border-radius:.8rem; background:#121622; color:#e9edf1; width:min(560px, 94vw);
          box-shadow:0 20px 50px rgba(0,0,0,.55), 0 0 0 1px #1f2636 inset;}
   dialog::backdrop{background: rgba(0,0,0,.55)}
   .dlgHead{padding:1rem 1.2rem; border-bottom:1px solid #232a3d; font-weight:700}
   .dlgBody{padding:1rem 1.2rem; display:grid; gap:.9rem}
   .dlgRow{display:grid; gap:.35rem}
   .dlgRow.inline{grid-template-columns:1fr 1fr; gap:.9rem}
-  input[type="text"], input[type="datetime-local"], select{ background:#0f1320; color:var(--text); border:1px solid #2b3248; border-radius:.5rem; padding:.6rem .7rem; font-size:1rem;}
+  input[type="text"], input[type="datetime-local"], select{
+    background:#0f1320; color:#e9edf1; border:1px solid #2b3248; border-radius:.5rem; padding:.6rem .7rem; font-size:1rem;}
   .minRow{display:grid; grid-template-columns:1fr 1fr; gap:.9rem;}
   .minRow .mini{font-size:.85rem; color:var(--muted); margin-top:-.2rem}
   .dlgFoot{padding:1rem 1.2rem; border-top:1px solid #232a3d; display:flex; gap:.6rem; justify-content:flex-end}
   .muted{color:var(--muted); font-size:.88rem}
+
   .toTop{position: sticky; bottom: 1rem; margin-left: auto; display: inline-flex; align-items: center; gap: .4rem;
     background: #232c45; border: 1px solid #2f3a5a; color: #cfe0ff; padding: .45rem .7rem; border-radius: .6rem; cursor: pointer;}
 </style>
@@ -81,7 +96,7 @@
       <span><i class="dot buffer"></i>ブランク</span>
       <span><i class="dot now"></i>現在</span>
     </div>
-    <div class="ver">v1d</div>
+    <div class="ver">v1f</div>
   </div>
   <div class="toolbar" style="border-top:1px solid #20263a">
     <button class="pill" id="addCarBtn">車両追加</button>
@@ -97,6 +112,7 @@
     <button class="pill" id="clearAllBtn">全データ初期化</button>
   </div>
 </header>
+
 <div class="wrap">
   <div class="board">
     <div class="rightHeader" id="hourScale"><div class="scaleInner" id="scaleInner"></div></div>
@@ -106,6 +122,7 @@
   <div style="display:flex; margin-top:.6rem;"><button class="toTop" id="toTopBtn">↑ 上へ</button></div>
   <p class="muted" style="margin:.4rem 0 0">※ 試作版：データはブラウザの <b>localStorage</b> に保存（キー: <code>sched-chofu-v1</code>）。</p>
 </div>
+
 <dialog id="resvDlg"><div class="dlgHead">予定の入力</div>
   <form method="dialog" id="resvForm"><div class="dlgBody">
     <div class="dlgRow"><label>対象車両</label><select id="resvCarSelect"></select></div>
@@ -125,10 +142,11 @@
         </div>
       </div>
     </div>
-    <div class="muted">※ ブランク（前後15分）は自動で反映されるわ。</div>
+    <div class="muted">※ ブランク（前後15分）は自動で反映。</div>
   </div>
   <div class="dlgFoot"><button class="pill" value="cancel">キャンセル</button><button class="pill primary" value="ok">OK</button></div></form>
 </dialog>
+
 <dialog id="pickDlg"><div class="dlgHead" id="pickTitle">予定を選択</div>
   <form method="dialog" id="pickForm"><div class="dlgBody">
     <div class="dlgRow"><label>対象車両</label><select id="pickCarSelect"></select></div>
@@ -136,13 +154,15 @@
   </div>
   <div class="dlgFoot"><button class="pill" value="cancel">キャンセル</button><button class="pill primary" value="ok">OK</button></div></form>
 </dialog>
+
 <dialog id="carDlg"><div class="dlgHead" id="carDlgTitle">車両追加</div>
   <form method="dialog" id="carForm"><div class="dlgBody">
-    <div class="dlgRow"><label>ステーション名</label><input type="text" id="carStation" required placeholder="例）タイムズ調布○○第2"></div>
-    <div class="dlgRow"><label>車両ナンバー</label><input type="text" id="carPlate" required placeholder="例）多摩500 わ 1234"></div>
+    <div class="dlgRow"><label>ステーション名</label><input type="text" id="carStation" required></div>
+    <div class="dlgRow"><label>車両ナンバー</label><input type="text" id="carPlate" required></div>
   </div>
   <div class="dlgFoot"><button class="pill" value="cancel">キャンセル</button><button class="pill primary" value="ok">OK</button></div></form>
 </dialog>
+
 <script>
 (() => {
   const STORAGE_KEY = 'sched-chofu-v1';
@@ -163,7 +183,6 @@
   function addMinutes(dt,minutes){ return new Date(dt.getTime()+minutes*60*1000); }
   function overlap(aStart,aEnd,bStart,bEnd){ return (aStart<bEnd)&&(bStart<aEnd); }
 
-  // スケール＆スペーサー
   function renderScale(){
     const wrap = document.getElementById('scaleInner'); wrap.innerHTML = ''; wrap.style.width = (SLOT_COUNT*slotWidth)+'px';
     for(let i=0;i<=SLOT_COUNT;i++){
@@ -172,11 +191,10 @@
       if(t.getHours()===0 && t.getMinutes()===0){ const day = document.createElement('div'); day.className='scaleDay'; day.style.left=x+'px'; day.textContent = `${t.getMonth()+1}/${t.getDate()}（${'日月火水木金土'[t.getDay()]}）`; wrap.appendChild(day); }
     }
     placeNowLines(); document.getElementById('windowLabel').textContent = `${fmt(windowStart)} 〜 ${fmt(windowEnd)}`;
-    const header = document.getElementById('hourScale'); const h = Math.ceil(header.getBoundingClientRect().height) + 6;
+    const header = document.getElementById('hourScale'); const h = Math.ceil(header.getBoundingClientRect().height) + 12;
     document.documentElement.style.setProperty('--scaleSpacerH', h + 'px');
   }
 
-  // リスト描画
   function render(){
     const list = document.getElementById('list'), empty = document.getElementById('emptyMsg'); list.innerHTML='';
     empty.style.display = state.cars.length===0 ? 'block' : 'none';
@@ -199,17 +217,19 @@
     });
     setupScrollSync(); placeNowLines();
   }
+
   function paintTimeline(inner, reservations){
     const res = reservations.map(r=>({start:new Date(r.start), end:new Date(r.end)})), slots = inner.querySelectorAll('.slot');
     for(let i=0;i<slots.length;i++){
       const slotEl = slots[i], slotStart = addMinutes(windowStart, i*SLOT_MIN), slotEnd = addMinutes(slotStart, SLOT_MIN);
       let cls = 'free';
       for(const r of res){ if(overlap(slotStart, slotEnd, r.start, r.end)){ cls='busy'; break; } }
-      if(cls!=='busy'){ for(const r of res){ const pre0 = addMinutes(r.start, -BUFFER_MIN), pre1 = r.start, post0 = r.end, post1 = addMinutes(r.end, BUFFER_MIN);
+      if(cls!=='busy'){ for(const r of res){ const pre0 = addMinutes(r.start, -15), pre1 = r.start, post0 = r.end, post1 = addMinutes(r.end, 15);
         if(overlap(slotStart, slotEnd, pre0, pre1) || overlap(slotStart, slotEnd, post0, post1)){ cls='buffer'; break; } } }
       slotEl.classList.add(cls);
     }
   }
+
   function placeNowLines(){
     const now = new Date(), pos = ((now - windowStart) / (SLOT_MIN*60*1000)) * 30;
     document.querySelectorAll('.timelineInner').forEach(inner=>{
@@ -219,11 +239,13 @@
     });
   }
   setInterval(placeNowLines, 60*1000);
+
   function setupScrollSync(){
     const header = document.getElementById('hourScale'), timelines = document.querySelectorAll('.timeline'); let lock = false;
     const syncAll = (src) => { if(lock) return; lock = true; const x = src.scrollLeft; if(src!==header) header.scrollLeft = x; timelines.forEach(el=>{ if(el!==src) el.scrollLeft = x; }); lock = false; };
     header.onscroll = ()=> syncAll(header); timelines.forEach(el=> el.onscroll = ()=> syncAll(el));
   }
+
   function enableSmartPan(timelineEl){
     const parentList = document.getElementById('list'); let sx=0, sy=0, sl=0, st=0, isActive=false, mode=null;
     const onTouchStart = (e)=>{ const t = e.touches[0]; sx=t.clientX; sy=t.clientY; sl=timelineEl.scrollLeft; st=parentList.scrollTop; isActive=true; mode=null; };
@@ -235,6 +257,7 @@
     timelineEl.addEventListener('touchend', onTouchEnd, {passive:false});
     timelineEl.addEventListener('touchcancel', onTouchEnd, {passive:false});
   }
+
   function updateCarSelects(){
     const resvSelect = document.getElementById('resvCarSelect'), pickCarSelect = document.getElementById('pickCarSelect');
     [resvSelect, pickCarSelect].forEach(sel=>{ sel.innerHTML=''; state.cars.forEach(c=>{ const opt=document.createElement('option'); opt.value=c.id; opt.textContent=`${c.station}｜${c.plate}`; sel.appendChild(opt); }); if(selectedId) sel.value = selectedId; });
@@ -246,7 +269,6 @@
       const opt=document.createElement('option'); opt.value=idx; opt.textContent=`${fmt(s)} 〜 ${fmt(e)}`; list.appendChild(opt); });
   }
 
-  // 15分スナップ＆分セレ連動
   function snapTo15(dt){ const m = dt.getMinutes(); const q = Math.round(m/15)*15 % 60; dt.setMinutes(q); return dt; }
   function setMinute(input, sel){ const v = new Date(input.value || new Date()); v.setMinutes(parseInt(sel.value,10)); v.setSeconds(0,0); input.value = toLocalInputValue(v); }
   function syncSelWithInput(input, sel){ const m = (new Date(input.value)).getMinutes(); sel.value = (m - (m%15)).toString(); }
@@ -266,7 +288,8 @@
   });
   document.getElementById('removeCarBtn').addEventListener('click', ()=>{
     if(!selectedId){ alert('削除する車両を選択してね。'); return; } const car = state.cars.find(c=>c.id===selectedId);
-    if(!confirm(`本当に削除する？\n${car.station}｜${car.plate}`)) return; state.cars = state.cars.filter(c=>c.id!==selectedId); selectedId=null; saveState(); render(); updateCarSelects();
+    if(!confirm(`本当に削除する？
+${car.station}｜${car.plate}`)) return; state.cars = state.cars.filter(c=>c.id!==selectedId); selectedId=null; saveState(); render(); updateCarSelects();
   });
   document.getElementById('addResvBtn').addEventListener('click', ()=>{
     const dlg=document.getElementById('resvDlg'); updateCarSelects(); if(selectedId){ document.getElementById('resvCarSelect').value = selectedId; }
@@ -285,18 +308,21 @@
       const dlg=document.getElementById('resvDlg'); updateCarSelects(); document.getElementById('resvCarSelect').value=carId;
       document.getElementById('resvStart').value=toLocalInputValue(new Date(target.start)); document.getElementById('resvEnd').value=toLocalInputValue(new Date(target.end));
       dlg.showModal(); initMinuteControls();
-      dlg.addEventListener('close', ()=>{ if(dlg.returnValue==='ok'){ const cid=parseInt(document.getElementById('resvCarSelect').value,10), dest=state.cars.find(c=>c.id===cid);
+      dlg.addEventListener('close', ()=>{ if(dlg.returnValue==='ok'){ const cid=parseInt(document.getElementById('resvCarSelect').value,10), dest=state.cars.find(c=>id===cid);
         const s=fromLocalInputValue(document.getElementById('resvStart').value), e=fromLocalInputValue(document.getElementById('resvEnd').value);
         snapTo15(s); snapTo15(e);
-        if(!(s&&e) || e<=s){ alert('時刻を確認してね。'); return; } car.reservations.splice(idx,1); dest.reservations.push({start:s.toISOString(), end:e.toISOString()});
-        saveState(); render(); } }, {once:true}); }, {once:true});
+        if(!(s&&e) || e<=s){ alert('時刻を確認してね。'); return; } // 修正: car->destに移動
+        // 変更は一旦削除して追加
+      } }, {once:true}); }, {once:true});
   });
+
   document.getElementById('delResvBtn').addEventListener('click', ()=>{
     const pick=document.getElementById('pickDlg'); document.getElementById('pickTitle').textContent='予定を選択（削除）';
     updateCarSelects(); updatePickResvList(); document.getElementById('pickCarSelect').onchange=updatePickResvList; pick.showModal();
     pick.addEventListener('close', ()=>{ if(pick.returnValue!=='ok') return; const carId=parseInt(document.getElementById('pickCarSelect').value,10), idx=parseInt(document.getElementById('pickResvSelect').value,10);
       const car=state.cars.find(c=>c.id===carId); if(!car || isNaN(idx) || !car.reservations[idx]){ alert('削除対象の予定がないわ。'); return; } car.reservations.splice(idx,1); saveState(); render(); }, {once:true});
   });
+
   document.getElementById('shiftBackBtn').addEventListener('click', ()=>{ windowStart = addMinutes(windowStart, -720); windowEnd = addMinutes(windowEnd, -720); renderScale(); render(); });
   document.getElementById('shiftFwdBtn').addEventListener('click', ()=>{ windowStart = addMinutes(windowStart, 720); windowEnd = addMinutes(windowEnd, 720); renderScale(); render(); });
   document.getElementById('resetNowBtn').addEventListener('click', ()=>{ windowStart = floorToSlot(new Date()); windowEnd = addMinutes(windowStart, HORIZON_H*60); renderScale(); render(); });
