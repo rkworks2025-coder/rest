@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>スケジュール管理（調布 72h） v1h</title>
+<title>スケジュール管理（調布 72h） v1i</title>
 <style>
   :root{
     --bg:#0f1115; --card:#171a21; --panel:#1d2130; --text:#e9edf1; --muted:#a8b0bb;
@@ -35,15 +35,10 @@
   .wrap{padding:1rem;}
   .board{background:var(--card); border:1px solid #20263a; border-radius:.8rem; overflow:hidden; position:relative;}
 
+  /* sticky 時間スケール（背景グリッドは出さず、ラベルのみ） */
   .rightHeader{background:#141824; border-bottom:1px solid #20263a; position:sticky; top: 3.4rem; z-index:6; overflow:auto;}
   .rightHeader::-webkit-scrollbar{height:8px}
-  .scaleInner{
-    position:relative; height:var(--scaleH); display:flex;
-    background:
-      repeating-linear-gradient(to right, rgba(255,255,255,.08) 0 1px, transparent 1px 15px),
-      repeating-linear-gradient(to right, transparent 0 58px, rgba(255,255,255,.30) 58px 60px);
-    background-position-x: 0px;
-  }
+  .scaleInner{ position:relative; height:var(--scaleH); }
   .scaleLabel{position:absolute; top:4px; transform:translateX(-50%); font-size:.8rem; color:var(--muted); white-space:nowrap;}
   .scaleDay{position:absolute; top:22px; transform:translateX(-50%); font-size:.75rem; color:#90a0b3;}
 
@@ -68,7 +63,6 @@
     background:
       repeating-linear-gradient(to right, rgba(255,255,255,.10) 0 1px, transparent 1px 15px),
       repeating-linear-gradient(to right, transparent 0 58px, rgba(255,255,255,.30) 58px 60px);
-    background-position-x: 0px;
   }
 
   .empty{padding:2rem; text-align:center; color:var(--muted); border-top:1px dashed #2a3044;}
@@ -101,7 +95,7 @@
       <span><i class="dot buffer"></i>ブランク</span>
       <span><i class="dot now"></i>現在</span>
     </div>
-    <div class="ver">v1h</div>
+    <div class="ver">v1i</div>
   </div>
   <div class="toolbar" style="border-top:1px solid #20263a">
     <button class="pill" id="addCarBtn">車両追加</button>
@@ -184,7 +178,6 @@
                                  { id:3, station:'タイムズ調布布田第1',   plate:'多摩501 わ 9012', reservations:[] }]; }
   function fmt(dt){const y=dt.getFullYear(),m=('0'+(dt.getMonth()+1)).slice(-2),d=('0'+dt.getDate()).slice(-2),hh=('0'+dt.getHours()).slice(-2),mm=('0'+dt.getMinutes()).slice(-2); return `${y}-${m}-${d} ${hh}:${mm}`;}
   function toLocalInputValue(dt){const y=dt.getFullYear(),m=('0'+(dt.getMonth()+1)).slice(-2),d=('0'+dt.getDate()).slice(-2),hh=('0'+dt.getHours()).slice(-2),mm=('0'+dt.getMinutes()).slice(-2); return `${y}-${m}-${d}T${hh}:${mm}`;}
-  function fromLocalInputValue(v){ return new Date(v); }
   function floorToSlot(dt){ const t=new Date(dt); t.setSeconds(0,0); t.setMinutes(t.getMinutes()- (t.getMinutes()%SLOT_MIN)); return t; }
   function addMinutes(dt,minutes){ return new Date(dt.getTime()+minutes*60*1000); }
   function overlap(aStart,aEnd,bStart,bEnd){ return (aStart<bEnd)&&(bStart<aEnd); }
@@ -199,7 +192,6 @@
     placeNowLines(); document.getElementById('windowLabel').textContent = `${fmt(windowStart)} 〜 ${fmt(windowEnd)}`;
     const header = document.getElementById('hourScale'); const h = Math.ceil(header.getBoundingClientRect().height) + 12;
     document.documentElement.style.setProperty('--scaleSpacerH', h + 'px');
-    syncGridPhase(header.scrollLeft);
   }
 
   function render(){
@@ -247,23 +239,10 @@
   }
   setInterval(placeNowLines, 60*1000);
 
-  // --- scroll sync & grid phase alignment ---
-  function syncGridPhase(x){
-    const phase = -(Math.round(x) % GRID_PX) + 'px 0px';
-    document.getElementById('scaleInner').style.backgroundPosition = phase;
-    document.querySelectorAll('.gridOverlay').forEach(g=> g.style.backgroundPosition = phase);
-  }
-
   function setupScrollSync(){
     const header = document.getElementById('hourScale'), timelines = document.querySelectorAll('.timeline'); let lock = false;
-    const syncAll = (src) => {
-      if(lock) return; lock = true;
-      const x = Math.round(src.scrollLeft); // 1px刻みに正規化（iOSのサブピクセル差異対策）
-      if(src!==header) header.scrollLeft = x;
-      timelines.forEach(el=>{ if(el!==src) el.scrollLeft = x; });
-      syncGridPhase(x);
-      lock = false;
-    };
+    const syncAll = (src) => { if(lock) return; lock = true; const x = Math.round(src.scrollLeft);
+      if(src!==header) header.scrollLeft = x; timelines.forEach(el=>{ if(el!==src) el.scrollLeft = x; }); lock = false; };
     header.onscroll = ()=> syncAll(header); timelines.forEach(el=> el.onscroll = ()=> syncAll(el));
   }
 
