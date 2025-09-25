@@ -3,12 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>スケジュール管理（調布 72h） v1c</title>
+<title>スケジュール管理（調布 72h） v1d</title>
 <style>
   :root{
     --bg:#0f1115; --card:#171a21; --panel:#1d2130; --text:#e9edf1; --muted:#a8b0bb;
     --accent:#ff8a00; --free:#2a73ff; --busy:#ff5b93; --buffer:#8b93a6; --grid:#2a2f3d; --now:#ffd54a;
     --rowHover:#242a3a; --selected:#2b3550; --scaleH:40px;
+    --scaleSpacerH: 48px;
   }
   html,body{height:100%}
   body{margin:0; background:var(--bg); color:var(--text);
@@ -29,15 +30,18 @@
   .dot.free{background:var(--free)} .dot.busy{background:var(--busy)} .dot.buffer{background:var(--buffer)} .dot.now{background:var(--now)}
   .wrap{padding:1rem;}
   .board{background:var(--card); border:1px solid #20263a; border-radius:.8rem; overflow:hidden; position:relative;}
-  .rightHeader{background:#141824; border-bottom:1px solid #20263a; position:sticky; top: 3.4rem; z-index:5; overflow:auto;}
-  .scaleInner{position:relative; height:var(--scaleH); display:flex;
-    background: repeating-linear-gradient(to right, rgba(255,255,255,.06) 0 1px, transparent 1px 15px),
-                repeating-linear-gradient(to right, transparent 0 59px, var(--grid) 59px 60px);}
+  .rightHeader{background:#141824; border-bottom:1px solid #20263a; position:sticky; top: 3.4rem; z-index:6; overflow:auto;}
+  .scaleInner{
+    position:relative; height:var(--scaleH); display:flex;
+    background:
+      repeating-linear-gradient(to right, rgba(255,255,255,.06) 0 1px, transparent 1px 15px),
+      repeating-linear-gradient(to right, transparent 0 59px, var(--grid) 59px 60px);
+  }
   .scaleLabel{position:absolute; top:4px; transform:translateX(-50%); font-size:.8rem; color:var(--muted); white-space:nowrap;}
   .scaleDay{position:absolute; top:22px; transform:translateX(-50%); font-size:.75rem; color:#90a0b3;}
   .list{max-height: calc(100vh - 210px); overflow: auto; -webkit-overflow-scrolling: touch; position: relative;}
-  .list::before{content:""; display:block; height: var(--scaleH);} /* spacer so first row isn't hidden */
-  .carItem{padding:.55rem .9rem .7rem; border-bottom:1px solid #20263a; background:transparent;}
+  .list::before{ content:""; display:block; height: var(--scaleSpacerH); }
+  .carItem{padding:.55rem .9rem .7rem; border-bottom:1px solid #20263a;}
   .carItem:hover{background:var(--rowHover)}
   .carItem.selected{background:var(--selected)}
   .info{display:flex; align-items:center; gap:.6rem; white-space:nowrap; overflow:hidden;}
@@ -51,19 +55,20 @@
   .nowLine{position:absolute; top:0; bottom:0; width:2px; background:var(--now); pointer-events:none; opacity:.9;}
   .gridOverlay{position:absolute; inset:0; pointer-events:none; background: repeating-linear-gradient(to right, rgba(255,255,255,.10) 0 1px, transparent 1px 15px);}
   .empty{padding:2rem; text-align:center; color:var(--muted); border-top:1px dashed #2a3044;}
-  dialog{border:none; border-radius:.8rem; background:#121622; color:var(--text); width:min(520px, 92vw);
+  dialog{border:none; border-radius:.8rem; background:#121622; color:var(--text); width:min(560px, 94vw);
          box-shadow:0 20px 50px rgba(0,0,0,.55), 0 0 0 1px #1f2636 inset;}
   dialog::backdrop{background: rgba(0,0,0,.55)}
   .dlgHead{padding:1rem 1.2rem; border-bottom:1px solid #232a3d; font-weight:700}
-  .dlgBody{padding:1rem 1.2rem; display:grid; gap:.8rem}
-  .dlgRow{display:grid; gap:.3rem}
-  .dlgRow.inline{grid-template-columns:1fr 1fr; gap:.8rem}
+  .dlgBody{padding:1rem 1.2rem; display:grid; gap:.9rem}
+  .dlgRow{display:grid; gap:.35rem}
+  .dlgRow.inline{grid-template-columns:1fr 1fr; gap:.9rem}
   input[type="text"], input[type="datetime-local"], select{ background:#0f1320; color:var(--text); border:1px solid #2b3248; border-radius:.5rem; padding:.6rem .7rem; font-size:1rem;}
+  .minRow{display:grid; grid-template-columns:1fr 1fr; gap:.9rem;}
+  .minRow .mini{font-size:.85rem; color:var(--muted); margin-top:-.2rem}
   .dlgFoot{padding:1rem 1.2rem; border-top:1px solid #232a3d; display:flex; gap:.6rem; justify-content:flex-end}
   .muted{color:var(--muted); font-size:.88rem}
   .toTop{position: sticky; bottom: 1rem; margin-left: auto; display: inline-flex; align-items: center; gap: .4rem;
     background: #232c45; border: 1px solid #2f3a5a; color: #cfe0ff; padding: .45rem .7rem; border-radius: .6rem; cursor: pointer;}
-  @media (max-width:480px){ .plate{font-size:.85rem} }
 </style>
 </head>
 <body>
@@ -76,7 +81,7 @@
       <span><i class="dot buffer"></i>ブランク</span>
       <span><i class="dot now"></i>現在</span>
     </div>
-    <div class="ver">v1c</div>
+    <div class="ver">v1d</div>
   </div>
   <div class="toolbar" style="border-top:1px solid #20263a">
     <button class="pill" id="addCarBtn">車両追加</button>
@@ -105,8 +110,20 @@
   <form method="dialog" id="resvForm"><div class="dlgBody">
     <div class="dlgRow"><label>対象車両</label><select id="resvCarSelect"></select></div>
     <div class="dlgRow inline">
-      <div><label>借用開始（お客さん）</label><input type="datetime-local" id="resvStart" required></div>
-      <div><label>返却予定（お客さん）</label><input type="datetime-local" id="resvEnd" required></div>
+      <div>
+        <label>借用開始（お客さん）</label>
+        <input type="datetime-local" id="resvStart" required step="900">
+        <div class="minRow"><label class="mini">分（00/15/30/45）</label>
+          <select id="resvStartMin"><option value="0">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option></select>
+        </div>
+      </div>
+      <div>
+        <label>返却予定（お客さん）</label>
+        <input type="datetime-local" id="resvEnd" required step="900">
+        <div class="minRow"><label class="mini">分（00/15/30/45）</label>
+          <select id="resvEndMin"><option value="0">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option></select>
+        </div>
+      </div>
     </div>
     <div class="muted">※ ブランク（前後15分）は自動で反映されるわ。</div>
   </div>
@@ -128,12 +145,12 @@
 </dialog>
 <script>
 (() => {
-  const VERSION='v1c';
   const STORAGE_KEY = 'sched-chofu-v1';
   const SLOT_MIN = 30, HORIZON_H = 72, SLOT_COUNT = (HORIZON_H*60)/SLOT_MIN, BUFFER_MIN = 15;
   const slotWidth = 30;
   let state = loadState(), selectedId = null;
   let windowStart = floorToSlot(new Date()), windowEnd = new Date(windowStart.getTime() + HORIZON_H*3600*1000);
+
   function loadState(){ try{ const raw=localStorage.getItem(STORAGE_KEY); if(!raw) return { cars: sampleCars(), lastId: 3 }; return JSON.parse(raw); }catch(e){ return { cars: sampleCars(), lastId: 3 }; } }
   function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
   function sampleCars(){ return [{ id:1, station:'タイムズ調布下石原第2', plate:'多摩500 わ 1234', reservations:[] },
@@ -145,6 +162,8 @@
   function floorToSlot(dt){ const t=new Date(dt); t.setSeconds(0,0); t.setMinutes(t.getMinutes()- (t.getMinutes()%SLOT_MIN)); return t; }
   function addMinutes(dt,minutes){ return new Date(dt.getTime()+minutes*60*1000); }
   function overlap(aStart,aEnd,bStart,bEnd){ return (aStart<bEnd)&&(bStart<aEnd); }
+
+  // スケール＆スペーサー
   function renderScale(){
     const wrap = document.getElementById('scaleInner'); wrap.innerHTML = ''; wrap.style.width = (SLOT_COUNT*slotWidth)+'px';
     for(let i=0;i<=SLOT_COUNT;i++){
@@ -153,7 +172,11 @@
       if(t.getHours()===0 && t.getMinutes()===0){ const day = document.createElement('div'); day.className='scaleDay'; day.style.left=x+'px'; day.textContent = `${t.getMonth()+1}/${t.getDate()}（${'日月火水木金土'[t.getDay()]}）`; wrap.appendChild(day); }
     }
     placeNowLines(); document.getElementById('windowLabel').textContent = `${fmt(windowStart)} 〜 ${fmt(windowEnd)}`;
+    const header = document.getElementById('hourScale'); const h = Math.ceil(header.getBoundingClientRect().height) + 6;
+    document.documentElement.style.setProperty('--scaleSpacerH', h + 'px');
   }
+
+  // リスト描画
   function render(){
     const list = document.getElementById('list'), empty = document.getElementById('emptyMsg'); list.innerHTML='';
     empty.style.display = state.cars.length===0 ? 'block' : 'none';
@@ -182,7 +205,7 @@
       const slotEl = slots[i], slotStart = addMinutes(windowStart, i*SLOT_MIN), slotEnd = addMinutes(slotStart, SLOT_MIN);
       let cls = 'free';
       for(const r of res){ if(overlap(slotStart, slotEnd, r.start, r.end)){ cls='busy'; break; } }
-      if(cls!=='busy'){ for(const r of res){ const pre0 = addMinutes(r.start, -15), pre1 = r.start, post0 = r.end, post1 = addMinutes(r.end, 15);
+      if(cls!=='busy'){ for(const r of res){ const pre0 = addMinutes(r.start, -BUFFER_MIN), pre1 = r.start, post0 = r.end, post1 = addMinutes(r.end, BUFFER_MIN);
         if(overlap(slotStart, slotEnd, pre0, pre1) || overlap(slotStart, slotEnd, post0, post1)){ cls='buffer'; break; } } }
       slotEl.classList.add(cls);
     }
@@ -197,7 +220,7 @@
   }
   setInterval(placeNowLines, 60*1000);
   function setupScrollSync(){
-    const header = document.getElementById('hourScale'); const timelines = document.querySelectorAll('.timeline'); let lock = false;
+    const header = document.getElementById('hourScale'), timelines = document.querySelectorAll('.timeline'); let lock = false;
     const syncAll = (src) => { if(lock) return; lock = true; const x = src.scrollLeft; if(src!==header) header.scrollLeft = x; timelines.forEach(el=>{ if(el!==src) el.scrollLeft = x; }); lock = false; };
     header.onscroll = ()=> syncAll(header); timelines.forEach(el=> el.onscroll = ()=> syncAll(el));
   }
@@ -222,6 +245,19 @@
     car.reservations.slice().sort((a,b)=> new Date(a.start)-new Date(b.start)).forEach((r,idx)=>{ const s=new Date(r.start), e=new Date(r.end);
       const opt=document.createElement('option'); opt.value=idx; opt.textContent=`${fmt(s)} 〜 ${fmt(e)}`; list.appendChild(opt); });
   }
+
+  // 15分スナップ＆分セレ連動
+  function snapTo15(dt){ const m = dt.getMinutes(); const q = Math.round(m/15)*15 % 60; dt.setMinutes(q); return dt; }
+  function setMinute(input, sel){ const v = new Date(input.value || new Date()); v.setMinutes(parseInt(sel.value,10)); v.setSeconds(0,0); input.value = toLocalInputValue(v); }
+  function syncSelWithInput(input, sel){ const m = (new Date(input.value)).getMinutes(); sel.value = (m - (m%15)).toString(); }
+  function initMinuteControls(){
+    const sIn = document.getElementById('resvStart'), eIn = document.getElementById('resvEnd');
+    const sSel = document.getElementById('resvStartMin'), eSel = document.getElementById('resvEndMin');
+    syncSelWithInput(sIn, sSel); syncSelWithInput(eIn, eSel);
+    sSel.onchange = ()=> setMinute(sIn, sSel); eSel.onchange = ()=> setMinute(eIn, eSel);
+    sIn.addEventListener('change', ()=> syncSelWithInput(sIn, sSel)); eIn.addEventListener('change', ()=> syncSelWithInput(eIn, eSel));
+  }
+
   document.getElementById('addCarBtn').addEventListener('click', ()=>{
     const dlg=document.getElementById('carDlg'); document.getElementById('carDlgTitle').textContent='車両追加';
     document.getElementById('carStation').value=''; document.getElementById('carPlate').value=''; dlg.showModal();
@@ -235,8 +271,10 @@
   document.getElementById('addResvBtn').addEventListener('click', ()=>{
     const dlg=document.getElementById('resvDlg'); updateCarSelects(); if(selectedId){ document.getElementById('resvCarSelect').value = selectedId; }
     document.getElementById('resvStart').value = toLocalInputValue(windowStart); document.getElementById('resvEnd').value = toLocalInputValue(addMinutes(windowStart,120));
-    dlg.showModal(); dlg.addEventListener('close', ()=>{ if(dlg.returnValue==='ok'){ const carId=parseInt(document.getElementById('resvCarSelect').value,10), car=state.cars.find(c=>c.id===carId);
+    dlg.showModal(); initMinuteControls();
+    dlg.addEventListener('close', ()=>{ if(dlg.returnValue==='ok'){ const carId=parseInt(document.getElementById('resvCarSelect').value,10), car=state.cars.find(c=>c.id===carId);
       const s=fromLocalInputValue(document.getElementById('resvStart').value), e=fromLocalInputValue(document.getElementById('resvEnd').value);
+      snapTo15(s); snapTo15(e);
       if(!car || !(s && e) || e<=s){ alert('時刻を確認してね。'); return; } car.reservations.push({start:s.toISOString(), end:e.toISOString()}); saveState(); render(); } }, {once:true});
   });
   document.getElementById('editResvBtn').addEventListener('click', ()=>{
@@ -246,8 +284,10 @@
       const car=state.cars.find(c=>c.id===carId); if(!car || isNaN(idx) || !car.reservations[idx]){ alert('変更対象の予定がないわ。'); return; } const target=car.reservations[idx];
       const dlg=document.getElementById('resvDlg'); updateCarSelects(); document.getElementById('resvCarSelect').value=carId;
       document.getElementById('resvStart').value=toLocalInputValue(new Date(target.start)); document.getElementById('resvEnd').value=toLocalInputValue(new Date(target.end));
-      dlg.showModal(); dlg.addEventListener('close', ()=>{ if(dlg.returnValue==='ok'){ const cid=parseInt(document.getElementById('resvCarSelect').value,10), dest=state.cars.find(c=>c.id===cid);
+      dlg.showModal(); initMinuteControls();
+      dlg.addEventListener('close', ()=>{ if(dlg.returnValue==='ok'){ const cid=parseInt(document.getElementById('resvCarSelect').value,10), dest=state.cars.find(c=>c.id===cid);
         const s=fromLocalInputValue(document.getElementById('resvStart').value), e=fromLocalInputValue(document.getElementById('resvEnd').value);
+        snapTo15(s); snapTo15(e);
         if(!(s&&e) || e<=s){ alert('時刻を確認してね。'); return; } car.reservations.splice(idx,1); dest.reservations.push({start:s.toISOString(), end:e.toISOString()});
         saveState(); render(); } }, {once:true}); }, {once:true});
   });
@@ -263,6 +303,7 @@
   document.getElementById('clearAllBtn').addEventListener('click', ()=>{ if(!confirm('調布エリアの保存データをすべて初期化するわ。よい？')) return;
     localStorage.removeItem(STORAGE_KEY); state=loadState(); selectedId=null; renderScale(); render(); updateCarSelects(); });
   document.getElementById('toTopBtn').addEventListener('click', ()=>{ document.getElementById('list').scrollTo({top:0, behavior:'smooth'}); });
+
   renderScale(); render(); updateCarSelects();
 })();
 </script>
