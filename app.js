@@ -15,104 +15,123 @@
    * - オブジェクト配列の場合は city/station/model/plate/number/status の揺れを吸収します。
    */
   async function fetchData() {
-    try {
-      const url = `${GAS_URL}?action=pull&_=${Date.now()}`;
-      const res = await fetch(url, { method: 'GET', cache: 'no-store' });
-      const text = await res.text();
-      // BOM を除去
-      const cleaned = text.replace(/^\ufeff/, '');
-      let json;
+    // Helper to call GAS with arbitrary query and parse response into rows (array)
+    async function callGAS(query) {
+      const url = `${GAS_URL}?${query}&_=${Date.now()}`;
       try {
-        json = JSON.parse(cleaned);
-      } catch (e) {
-        console.warn('JSON parse error. response snippet:', cleaned.slice(0, 200));
+        const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+        const raw = await res.text();
+        const cleaned = raw.replace(/^\ufeff/, '');
+        let json;
+        try {
+          json = JSON.parse(cleaned);
+        } catch (e) {
+          return [];
+        }
+        let rows;
+        if (Array.isArray(json)) {
+          rows = json;
+        } else if (Array.isArray(json.data)) {
+          rows = json.data;
+        } else if (Array.isArray(json.values)) {
+          rows = json.values;
+        } else {
+          rows = [];
+        }
+        if ((!rows || rows.length === 0) && Array.isArray(json) && Array.isArray(json[0])) {
+          rows = json;
+        }
+        return rows;
+      } catch (err) {
         return [];
       }
-      // extract rows from possible locations
-      let rows;
-      if (Array.isArray(json)) {
-        rows = json;
-      } else if (Array.isArray(json.data)) {
-        rows = json.data;
-      } else if (Array.isArray(json.values)) {
-        rows = json.values;
-      } else {
-        rows = [];
-      }
-      // fallback: if rows empty and json itself is 2D array
-      if ((!rows || rows.length === 0) && Array.isArray(json) && Array.isArray(json[0])) {
-        rows = json;
-      }
-      const result = [];
-      if (rows && rows.length > 0 && Array.isArray(rows[0])) {
-        // 2D array: detect header row
-        let headerMap = null;
-        const first = rows[0];
-        if (Array.isArray(first)) {
-          const lower = first.map(x => (typeof x === 'string' ? x.trim().toLowerCase() : ''));
-          if (lower.some(x => x.includes('city')) && lower.some(x => x.includes('station'))) {
-            headerMap = {};
-            for (let i = 0; i < lower.length; i++) {
-              const col = lower[i];
-              if (col.includes('city')) headerMap.city = i;
-              else if (col.includes('station')) headerMap.station = i;
-              else if (col.includes('model')) headerMap.model = i;
-              else if (col.includes('plate') || col.includes('number')) headerMap.plate = i;
-              else if (col.includes('status')) headerMap.status = i;
-            }
-            // skip header row
-            rows = rows.slice(1);
-          }
-        }
-        for (const r of rows) {
-          if (!Array.isArray(r)) continue;
-          let city = '';
-          let station = '';
-          let model = '';
-          let plate = '';
-          let status = '';
-          if (headerMap) {
-            city = r[headerMap.city ?? 0] || '';
-            station = r[headerMap.station ?? 1] || '';
-            model = r[headerMap.model ?? 2] || '';
-            plate = r[headerMap.plate ?? 3] || '';
-            status = r[headerMap.status ?? 4] || '';
-          } else {
-            // heuristic: A=city, B=station, C=model, D=plate, F=status
-            city = r[0] || '';
-            // Some GAS may have TS-prefixed row; treat r[3] as station if r[1] is header 'city'
-            station = r[1] || r[3] || '';
-            model = r[2] || '';
-            plate = r[3] || '';
-            status = r[5] || r[4] || '';
-          }
-          result.push({
-            city: String(city).trim(),
-            station: String(station).trim(),
-            model: String(model).trim(),
-            plate: String(plate).trim(),
-            status: String(status).trim(),
-          });
-        }
-        return result;
-      }
-      // handle array of objects
-      if (rows && Array.isArray(rows)) {
-        return rows.map(obj => {
-          return {
-            city: String(obj.city ?? obj.City ?? obj.city_name ?? '').trim(),
-            station: String(obj.station ?? obj.Station ?? obj.station_name ?? '').trim(),
-            model: String(obj.model ?? obj.Model ?? obj.car_model ?? '').trim(),
-            plate: String(obj.plate ?? obj.Plate ?? obj.number ?? obj.Number ?? '').trim(),
-            status: String(obj.status ?? obj.Status ?? obj.state ?? '').trim(),
-          };
-        });
-      }
-      return [];
-    } catch (err) {
-      console.error('fetch error', err);
+    }
+    // このアプリは inspectionlog タブからのみデータを取得します。
+    // v6w とは異なるタブ名のため、考えられるクエリを複数試行します。
+    const queries = [
+      'action=pullInspectionlog',
+      'action=pullinspectionlog',
+      'action=pull_inspectionlog',
+      'action=pullLog',
+      'action=inspectionlog',
+      'action=pull&sheet=inspectionlog',
+      'action=pull&tab=inspectionlog',
+      'sheet=inspectionlog',
+      'tab=inspectionlog',
+      'action=pull'
+    ];
+    let rows = [];
+    for (const q of queries) {
+      rows = await callGAS(q);
+      if (rows && rows.length > 0) break;
+    }
+    if (!rows || rows.length === 0) {
       return [];
     }
+    // Now transform rows into array of objects
+    const result = [];
+    if (Array.isArray(rows[0])) {
+      // 2D array. detect header row with city/station pattern
+      let headerMap = null;
+      const first = rows[0];
+      if (Array.isArray(first)) {
+        const lower = first.map(x => (typeof x === 'string' ? x.trim().toLowerCase() : ''));
+        if (lower.some(x => x.includes('city')) && lower.some(x => x.includes('station'))) {
+          headerMap = {};
+          for (let i = 0; i < lower.length; i++) {
+            const col = lower[i];
+            if (col.includes('city')) headerMap.city = i;
+            else if (col.includes('station')) headerMap.station = i;
+            else if (col.includes('model')) headerMap.model = i;
+            else if (col.includes('plate') || col.includes('number')) headerMap.plate = i;
+            else if (col.includes('status')) headerMap.status = i;
+          }
+          // skip header row
+          rows = rows.slice(1);
+        }
+      }
+      for (const r of rows) {
+        if (!Array.isArray(r)) continue;
+        let city = '';
+        let station = '';
+        let model = '';
+        let plate = '';
+        let status = '';
+        if (headerMap) {
+          city = r[headerMap.city ?? 0] || '';
+          station = r[headerMap.station ?? 1] || '';
+          model = r[headerMap.model ?? 2] || '';
+          plate = r[headerMap.plate ?? 3] || '';
+          status = r[headerMap.status ?? 4] || '';
+        } else {
+          // heuristic: A=city, B=station, C=model, D=plate, F=status
+          city = r[0] || '';
+          station = r[1] || '';
+          model = r[2] || '';
+          plate = r[3] || '';
+          // status may be at 4 or 5 depending on header presence
+          status = r[5] || r[4] || '';
+        }
+        result.push({
+          city: String(city).trim(),
+          station: String(station).trim(),
+          model: String(model).trim(),
+          plate: String(plate).trim(),
+          status: String(status).trim(),
+        });
+      }
+      return result;
+    }
+    // handle array of objects
+    return rows.map(obj => {
+      return {
+        city: String(obj.city ?? obj.City ?? obj.city_name ?? '').trim(),
+        station: String(obj.station ?? obj.Station ?? obj.station_name ?? '').trim(),
+        model: String(obj.model ?? obj.Model ?? obj.car_model ?? '').trim(),
+        plate: String(obj.plate ?? obj.Plate ?? obj.number ?? obj.Number ?? '').trim(),
+        status: String(obj.status ?? obj.Status ?? obj.state ?? '').trim(),
+      };
+    });
   }
 
   /** Categorize vehicles by area slug using city and status filter */
