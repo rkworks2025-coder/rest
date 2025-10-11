@@ -8,7 +8,7 @@
     <script defer src="app.js"></script>
 </head>
 <body>
-    <div class="version-badge">z1a</div>
+    <div class="version-badge">z1b</div>
     <h1 id="area-title"></h1>
     <div class="toolbar">
         <button id="addBtn">登録</button>
@@ -17,21 +17,19 @@
         <button id="backBtn" onclick="window.location.href='index.html'">戻る</button>
     </div>
     <div id="schedule-container"></div>
-    <!-- Add Modal -->
     <div class="modal" id="addModal">
         <div class="modal-content">
             <h3>予定登録</h3>
             <label>車両:</label>
             <select id="addVehicleSelect"></select><br />
             <label>開始:</label>
-            <input type="datetime-local" id="addStart" /><br />
+            <input type="datetime-local" id="addStart" step="900" /><br />
             <label>終了:</label>
-            <input type="datetime-local" id="addEnd" /><br />
+            <input type="datetime-local" id="addEnd" step="900" /><br />
             <button id="addConfirm">登録</button>
             <button onclick="closeModal('addModal')">閉じる</button>
         </div>
     </div>
-    <!-- Edit Modal -->
     <div class="modal" id="editModal">
         <div class="modal-content">
             <h3>予定変更</h3>
@@ -40,14 +38,13 @@
             <label>予定選択:</label>
             <select id="editScheduleSelect"></select><br />
             <label>新しい開始:</label>
-            <input type="datetime-local" id="editStart" /><br />
+            <input type="datetime-local" id="editStart" step="900" /><br />
             <label>新しい終了:</label>
-            <input type="datetime-local" id="editEnd" /><br />
+            <input type="datetime-local" id="editEnd" step="900" /><br />
             <button id="editConfirm">変更</button>
             <button onclick="closeModal('editModal')">閉じる</button>
         </div>
     </div>
-    <!-- Delete Modal -->
     <div class="modal" id="deleteModal">
         <div class="modal-content">
             <h3>予定削除</h3>
@@ -59,17 +56,9 @@
             <button onclick="closeModal('deleteModal')">閉じる</button>
         </div>
     </div>
-
     <script>
     const areaName = '大和';
-    const scheduleData = {
-        area: areaName,
-        vehicles: [
-            { name: '大和駅 - 1号車', schedules: [] },
-            { name: '大和駅 - 2号車', schedules: [] },
-            { name: '大和駅 - 3号車', schedules: [] }
-        ]
-    };
+    const fetchUrl = 'https://script.google.com/macros/s/AKfycby9RpFiUbYu6YX6JW9XfwbDx36_4AIlGEQMOxR3SnxgNdoRUJKfyxvF3b1SEYwuHb3X/exec';
     </script>
 </body>
 </html>

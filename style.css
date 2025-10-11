@@ -1,15 +1,16 @@
-/* 基本スタイル */
+/* ベーススタイル */
 body {
     font-family: sans-serif;
     margin: 0;
-    padding: 0;
-    background-color: #f5f5f5;
-    color: #333;
+    background-color: #121212;
+    color: #e0e0e0;
 }
 
 h1 {
     margin: 16px;
     text-align: center;
+    font-size: 2rem;
+    color: #ffffff;
 }
 
 .version-badge {
@@ -17,67 +18,84 @@ h1 {
     top: 8px;
     right: 8px;
     padding: 4px 8px;
-    background-color: #eee;
+    background-color: #333333;
+    color: #ffffff;
     border-radius: 4px;
     font-size: 12px;
     z-index: 1000;
 }
 
-/* index page card styles */
+/* インデックスページのカード */
 .card-container {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
     gap: 16px;
     padding: 16px;
 }
 
+@media (min-width: 600px) {
+    .card-container {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
 .area-card {
     display: block;
-    width: 200px;
+    width: 90%;
+    max-width: 350px;
     padding: 16px;
-    background-color: #fff;
+    background-color: #1e1e1e;
+    border: 1px solid #333333;
     border-radius: 8px;
     text-decoration: none;
-    color: #333;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s;
+    color: #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+    transition: transform 0.2s, background-color 0.2s;
 }
 
 .area-card:hover {
     transform: translateY(-4px);
+    background-color: #2a2a2a;
 }
 
+/* ツールバー */
 .toolbar {
     display: flex;
     gap: 8px;
+    justify-content: center;
     margin: 8px 16px;
+    flex-wrap: wrap;
 }
 
 button {
     padding: 8px 12px;
     border: none;
     border-radius: 4px;
-    background-color: #007bff;
-    color: #fff;
+    background-color: #007acc;
+    color: #ffffff;
     cursor: pointer;
+    font-size: 14px;
 }
 
 button:hover {
-    background-color: #0056b3;
+    background-color: #005fa3;
 }
 
+/* スケジュールテーブル */
 #schedule-container {
     margin: 16px;
     overflow-x: auto;
-    border: 1px solid #ddd;
-    background-color: #fff;
+    border: 1px solid #333333;
+    background-color: #1e1e1e;
+    border-radius: 4px;
 }
 
 .schedule-row {
     display: flex;
-    position: relative;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid #333333;
     min-height: 40px;
     align-items: center;
 }
@@ -89,11 +107,12 @@ button:hover {
 .vehicle-label {
     flex: 0 0 180px;
     padding: 8px;
-    border-right: 1px solid #eee;
-    background-color: #fafafa;
+    border-right: 1px solid #333333;
+    background-color: #2a2a2a;
     position: sticky;
     left: 0;
     z-index: 2;
+    white-space: nowrap;
 }
 
 .timeline {
@@ -102,28 +121,7 @@ button:hover {
     min-height: 40px;
 }
 
-/* 色分けクラス */
-.bar-reserved {
-    background-color: #f8a5c2;
-    border: 1px solid #f088a0;
-    position: absolute;
-    height: 70%;
-    top: 15%;
-    border-radius: 4px;
-    z-index: 3;
-}
-
-.bar-buffer {
-    background-color: #d3d3d3;
-    border: 1px solid #bcbcbc;
-    position: absolute;
-    height: 50%;
-    top: 25%;
-    border-radius: 4px;
-    z-index: 2;
-}
-
-/* タイムラインの背景(空き) */
+/* タイムライン背景（空き） */
 .timeline::before {
     content: '';
     position: absolute;
@@ -131,18 +129,40 @@ button:hover {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: #b3d9ff; /* 青: 空き */
+    background-color: #1f2f4d;
     z-index: 0;
 }
 
-/* モーダルスタイル */
+/* 予約バー */
+.bar-reserved {
+    background-color: #c06092;
+    border: 1px solid #9e4c74;
+    position: absolute;
+    height: 70%;
+    top: 15%;
+    border-radius: 4px;
+    z-index: 3;
+}
+
+/* バッファバー */
+.bar-buffer {
+    background-color: #555555;
+    border: 1px solid #666666;
+    position: absolute;
+    height: 50%;
+    top: 25%;
+    border-radius: 4px;
+    z-index: 2;
+}
+
+/* モーダル */
 .modal {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.7);
     display: none;
     align-items: center;
     justify-content: center;
@@ -150,14 +170,21 @@ button:hover {
 }
 
 .modal-content {
-    background: #fff;
+    background-color: #1e1e1e;
     padding: 20px;
     border-radius: 8px;
-    width: 300px;
+    width: 90%;
+    max-width: 350px;
+    color: #e0e0e0;
 }
 
 .modal-content input,
 .modal-content select {
     width: 100%;
     margin-bottom: 8px;
+    padding: 6px;
+    background-color: #2c2c2c;
+    color: #e0e0e0;
+    border: 1px solid #444444;
+    border-radius: 4px;
 }
