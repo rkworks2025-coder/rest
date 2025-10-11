@@ -1,190 +1,279 @@
-/* ベーススタイル */
+/*
+ * 共通スタイル
+ *
+ * 本アプリは iPhone などのスマートフォンでの閲覧を前提とし、
+ * 全体を黒基調にして目への負担を軽減しています。
+ * 各ページで共通して利用するカード、ツールバー、
+ * スケジュールテーブルのデザインを定義します。
+ */
+
 body {
-    font-family: sans-serif;
-    margin: 0;
-    background-color: #121212;
-    color: #e0e0e0;
+  margin: 0;
+  background-color: #121212;
+  color: #e0e0e0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
 }
 
-h1 {
-    margin: 16px;
-    text-align: center;
-    font-size: 2rem;
-    color: #ffffff;
-}
-
+/* バージョンバッジは右上に固定表示 */
 .version-badge {
-    position: fixed;
-    top: 8px;
-    right: 8px;
-    padding: 4px 8px;
-    background-color: #333333;
-    color: #ffffff;
-    border-radius: 4px;
-    font-size: 12px;
-    z-index: 1000;
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  background-color: #333333;
+  color: #ffffff;
+  border-radius: 4px;
+  font-size: 10px;
+  z-index: 1000;
 }
 
-/* インデックスページのカード */
-.card-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    padding: 16px;
+/* アプリバーはページ上部に固定し、タイトルとステータスを配置 */
+.appbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: #121212;
+  border-bottom: 1px solid #333333;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
+.appbar .title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  flex: 1;
+  text-align: center;
+}
+
+/* データ取得状況などを表示するステータス文字 */
+.status {
+  font-size: 0.8rem;
+  color: #b0b0b0;
+  margin-left: auto;
+}
+
+/* メインコンテンツのラッパー */
+.wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* インデックスページのカード群 */
+.cards {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+/* PC や大きな画面では横並びにする */
 @media (min-width: 600px) {
-    .card-container {
-        flex-direction: row;
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-}
-
-.area-card {
-    display: block;
-    width: 90%;
-    max-width: 350px;
-    padding: 16px;
-    background-color: #1e1e1e;
-    border: 1px solid #333333;
-    border-radius: 8px;
-    text-decoration: none;
-    color: #e0e0e0;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
-    transition: transform 0.2s, background-color 0.2s;
-}
-
-.area-card:hover {
-    transform: translateY(-4px);
-    background-color: #2a2a2a;
-}
-
-/* ツールバー */
-.toolbar {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    margin: 8px 16px;
+  .cards {
+    flex-direction: row;
     flex-wrap: wrap;
+    justify-content: center;
+  }
 }
 
-button {
-    padding: 8px 12px;
-    border: none;
-    border-radius: 4px;
-    background-color: #007acc;
-    color: #ffffff;
-    cursor: pointer;
-    font-size: 14px;
+/* 各エリアを示すカード */
+.card {
+  display: block;
+  width: 90%;
+  max-width: 300px;
+  padding: 16px;
+  background-color: #1e1e1e;
+  border: 1px solid #333333;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  transition: background-color 0.2s, transform 0.2s;
 }
 
-button:hover {
-    background-color: #005fa3;
+.card:hover {
+  background-color: #222222;
+  transform: translateY(-2px);
 }
 
-/* スケジュールテーブル */
+.card h2 {
+  margin: 0 0 8px 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.card .count {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #b0b0b0;
+}
+
+/* エリアページのツールバー */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 8px 16px;
+  flex-wrap: wrap;
+}
+
+.toolbar button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  background-color: #007acc;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.toolbar button:hover {
+  background-color: #005fa3;
+}
+
+/* 戻るボタン */
+.back-btn {
+  padding: 8px 12px;
+  border: 1px solid #333333;
+  border-radius: 4px;
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* スケジュールテーブルコンテナ */
 #schedule-container {
-    margin: 16px;
-    overflow-x: auto;
-    border: 1px solid #333333;
-    background-color: #1e1e1e;
-    border-radius: 4px;
+  margin: 16px;
+  overflow-x: auto;
+  border: 1px solid #333333;
+  background-color: #1e1e1e;
+  border-radius: 4px;
 }
 
+/* 1行分のスケジュール */
 .schedule-row {
-    display: flex;
-    border-bottom: 1px solid #333333;
-    min-height: 40px;
-    align-items: center;
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  border-bottom: 1px solid #333333;
 }
 
 .schedule-row:last-child {
-    border-bottom: none;
+  border-bottom: none;
 }
 
+/* 車両名を表示する列 */
 .vehicle-label {
-    flex: 0 0 180px;
-    padding: 8px;
-    border-right: 1px solid #333333;
-    background-color: #2a2a2a;
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    white-space: nowrap;
+  flex: 0 0 180px;
+  padding: 8px;
+  background-color: #1e1e1e;
+  border-right: 1px solid #333333;
+  white-space: nowrap;
+  position: sticky;
+  left: 0;
+  z-index: 2;
 }
 
+/* 時間軸部分 */
 .timeline {
-    position: relative;
-    flex: 1;
-    min-height: 40px;
+  position: relative;
+  flex: 1;
+  min-height: 40px;
 }
 
-/* タイムライン背景（空き） */
+/* 空き時間の背景（青） */
 .timeline::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #1f2f4d;
-    z-index: 0;
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #0c4a6e;
+  z-index: 0;
 }
 
-/* 予約バー */
+/* 予約済み区間（ピンク） */
 .bar-reserved {
-    background-color: #c06092;
-    border: 1px solid #9e4c74;
-    position: absolute;
-    height: 70%;
-    top: 15%;
-    border-radius: 4px;
-    z-index: 3;
+  background-color: #d81b60;
+  border: 1px solid #c2185b;
+  position: absolute;
+  height: 70%;
+  top: 15%;
+  border-radius: 4px;
+  z-index: 3;
 }
 
-/* バッファバー */
+/* バッファ区間（灰） */
 .bar-buffer {
-    background-color: #555555;
-    border: 1px solid #666666;
-    position: absolute;
-    height: 50%;
-    top: 25%;
-    border-radius: 4px;
-    z-index: 2;
+  background-color: #424242;
+  border: 1px solid #616161;
+  position: absolute;
+  height: 50%;
+  top: 25%;
+  border-radius: 4px;
+  z-index: 2;
 }
 
-/* モーダル */
+/* モーダル全体のオーバーレイ */
 .modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
 
+/* モーダルボックス */
 .modal-content {
-    background-color: #1e1e1e;
-    padding: 20px;
-    border-radius: 8px;
-    width: 90%;
-    max-width: 350px;
-    color: #e0e0e0;
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  padding: 20px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 350px;
 }
 
+/* モーダル内の入力フォーム共通スタイル */
 .modal-content input,
 .modal-content select {
-    width: 100%;
-    margin-bottom: 8px;
-    padding: 6px;
-    background-color: #2c2c2c;
-    color: #e0e0e0;
-    border: 1px solid #444444;
-    border-radius: 4px;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid #555555;
+  border-radius: 4px;
+  background-color: #2a2a2a;
+  color: #e0e0e0;
+}
+
+/* モーダル内のボタン */
+.modal-content button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  background-color: #007acc;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.modal-content button:hover {
+  background-color: #005fa3;
+}
+
+/* モーダル内のボタンの間隔 */
+.modal-content button + button {
+  margin-left: 8px;
 }

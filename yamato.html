@@ -3,20 +3,24 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>大和エリア スケジュール</title>
+    <title>大和市 スケジュール</title>
     <link rel="stylesheet" href="style.css" />
     <script defer src="app.js"></script>
 </head>
 <body>
-    <div class="version-badge">z1b</div>
-    <h1 id="area-title"></h1>
+    <div class="version-badge">z1c</div>
+    <header class="appbar">
+        <h1 class="title">大和市 スケジュール</h1>
+        <button class="back-btn" onclick="location.href='index.html'">戻る</button>
+    </header>
     <div class="toolbar">
         <button id="addBtn">登録</button>
         <button id="editBtn">変更</button>
         <button id="deleteBtn">削除</button>
-        <button id="backBtn" onclick="window.location.href='index.html'">戻る</button>
     </div>
     <div id="schedule-container"></div>
+
+    <!-- Add Modal -->
     <div class="modal" id="addModal">
         <div class="modal-content">
             <h3>予定登録</h3>
@@ -30,6 +34,7 @@
             <button onclick="closeModal('addModal')">閉じる</button>
         </div>
     </div>
+    <!-- Edit Modal -->
     <div class="modal" id="editModal">
         <div class="modal-content">
             <h3>予定変更</h3>
@@ -45,6 +50,7 @@
             <button onclick="closeModal('editModal')">閉じる</button>
         </div>
     </div>
+    <!-- Delete Modal -->
     <div class="modal" id="deleteModal">
         <div class="modal-content">
             <h3>予定削除</h3>
@@ -56,9 +62,16 @@
             <button onclick="closeModal('deleteModal')">閉じる</button>
         </div>
     </div>
+
     <script>
-    const areaName = '大和';
-    const fetchUrl = 'https://script.google.com/macros/s/AKfycby9RpFiUbYu6YX6JW9XfwbDx36_4AIlGEQMOxR3SnxgNdoRUJKfyxvF3b1SEYwuHb3X/exec';
+      // エリア識別子と名称を定義
+      window.areaSlug = 'yamato';
+      window.areaName = '大和市';
+      document.addEventListener('DOMContentLoaded', () => {
+        if (window.Junkai && typeof window.Junkai.initArea === 'function') {
+          window.Junkai.initArea();
+        }
+      });
     </script>
 </body>
 </html>

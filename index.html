@@ -3,26 +3,40 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ステーション巡回スケジュール</title>
+    <title>巡回リスト</title>
     <link rel="stylesheet" href="style.css" />
     <script defer src="app.js"></script>
 </head>
 <body>
-    <div class="version-badge">z1b</div>
-    <h1>エリア選択</h1>
-    <div class="card-container">
-        <a href="chofu.html" class="area-card">
-            <h2>調布エリア</h2>
-            <p>調布地区の車両スケジュール</p>
-        </a>
-        <a href="yamato.html" class="area-card">
-            <h2>大和エリア</h2>
-            <p>大和地区の車両スケジュール</p>
-        </a>
-        <a href="ebina.html" class="area-card">
-            <h2>海老名エリア</h2>
-            <p>海老名地区の車両スケジュール</p>
-        </a>
-    </div>
+    <div class="version-badge">z1c</div>
+    <header class="appbar">
+        <h1 class="title">エリア選択</h1>
+        <div class="status" id="fetchStatus"></div>
+    </header>
+    <main class="wrap">
+        <section class="cards">
+            <a href="yamato.html" class="card" id="card-yamato">
+                <h2>大和市</h2>
+                <p class="count"><span id="count-yamato">0</span> 台の車両</p>
+            </a>
+            <a href="ebina.html" class="card" id="card-ebina">
+                <h2>海老名市</h2>
+                <p class="count"><span id="count-ebina">0</span> 台の車両</p>
+            </a>
+            <a href="chofu.html" class="card" id="card-chofu">
+                <h2>調布市</h2>
+                <p class="count"><span id="count-chofu">0</span> 台の車両</p>
+            </a>
+        </section>
+    </main>
+
+    <!-- Initialise index after script load -->
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        if (window.Junkai && typeof window.Junkai.initIndex === 'function') {
+          window.Junkai.initIndex();
+        }
+      });
+    </script>
 </body>
 </html>
