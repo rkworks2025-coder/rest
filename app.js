@@ -6,15 +6,30 @@
   const TOTAL_HOURS = 72;
   const TOTAL_SLOTS = (TOTAL_HOURS * 60) / SLOT_MINUTES;
 
-  /** Fetch data from GAS and return array of objects with keys: city, station, model, plate, status */
+  /**
+   * GAS からデータを取得し、共通フォーマットに整形します。
+   *
+   * - URL は ?action=pull 付きでアクセスします。
+   * - json.data / json.values / ルート配列のいずれかを受理します。
+   * - 返却が 2 次元配列の場合はヘッダー行を自動判定し、列をマッピングします。
+   * - オブジェクト配列の場合は city/station/model/plate/number/status の揺れを吸収します。
+   */
   async function fetchData() {
     try {
-      const res = await fetch(GAS_URL + '?action=pull&_=' + Date.now());
+      const url = `${GAS_URL}?action=pull&_=${Date.now()}`;
+      const res = await fetch(url, { method: 'GET', cache: 'no-store' });
       const text = await res.text();
+      // BOM を除去
       const cleaned = text.replace(/^\ufeff/, '');
-      const json = JSON.parse(cleaned);
-      let rows = [];
-      // Accept json.data or json.values or array of objects
+      let json;
+      try {
+        json = JSON.parse(cleaned);
+      } catch (e) {
+        console.warn('JSON parse error. response snippet:', cleaned.slice(0, 200));
+        return [];
+      }
+      // extract rows from possible locations
+      let rows;
       if (Array.isArray(json)) {
         rows = json;
       } else if (Array.isArray(json.data)) {
@@ -24,36 +39,76 @@
       } else {
         rows = [];
       }
-      // If rows is array of arrays, map using column positions A: city, B: station, C: model, D: plate, F: status
-      if (rows.length > 0 && Array.isArray(rows[0])) {
-        // Check header row: if contains 'city', 'station' etc then skip
-        const lower = rows[0].map(v => (typeof v === 'string' ? v.trim().toLowerCase() : ''));
-        let startIndex = 0;
-        if (lower.includes('city') || lower.includes('station')) {
-          startIndex = 1;
+      // fallback: if rows empty and json itself is 2D array
+      if ((!rows || rows.length === 0) && Array.isArray(json) && Array.isArray(json[0])) {
+        rows = json;
+      }
+      const result = [];
+      if (rows && rows.length > 0 && Array.isArray(rows[0])) {
+        // 2D array: detect header row
+        let headerMap = null;
+        const first = rows[0];
+        if (Array.isArray(first)) {
+          const lower = first.map(x => (typeof x === 'string' ? x.trim().toLowerCase() : ''));
+          if (lower.some(x => x.includes('city')) && lower.some(x => x.includes('station'))) {
+            headerMap = {};
+            for (let i = 0; i < lower.length; i++) {
+              const col = lower[i];
+              if (col.includes('city')) headerMap.city = i;
+              else if (col.includes('station')) headerMap.station = i;
+              else if (col.includes('model')) headerMap.model = i;
+              else if (col.includes('plate') || col.includes('number')) headerMap.plate = i;
+              else if (col.includes('status')) headerMap.status = i;
+            }
+            // skip header row
+            rows = rows.slice(1);
+          }
         }
-        const result = [];
-        for (let i = startIndex; i < rows.length; i++) {
-          const r = rows[i];
-          const city = r[0] || '';
-          const station = r[1] || '';
-          const model = r[2] || '';
-          const plate = r[3] || '';
-          const status = r[5] || '';
-          result.push({ city, station, model, plate, status });
+        for (const r of rows) {
+          if (!Array.isArray(r)) continue;
+          let city = '';
+          let station = '';
+          let model = '';
+          let plate = '';
+          let status = '';
+          if (headerMap) {
+            city = r[headerMap.city ?? 0] || '';
+            station = r[headerMap.station ?? 1] || '';
+            model = r[headerMap.model ?? 2] || '';
+            plate = r[headerMap.plate ?? 3] || '';
+            status = r[headerMap.status ?? 4] || '';
+          } else {
+            // heuristic: A=city, B=station, C=model, D=plate, F=status
+            city = r[0] || '';
+            // Some GAS may have TS-prefixed row; treat r[3] as station if r[1] is header 'city'
+            station = r[1] || r[3] || '';
+            model = r[2] || '';
+            plate = r[3] || '';
+            status = r[5] || r[4] || '';
+          }
+          result.push({
+            city: String(city).trim(),
+            station: String(station).trim(),
+            model: String(model).trim(),
+            plate: String(plate).trim(),
+            status: String(status).trim(),
+          });
         }
         return result;
       }
-      // Else rows may be array of objects with keys
-      return rows.map(obj => {
-        return {
-          city: obj.city || obj.City || obj['city'] || '',
-          station: obj.station || obj.Station || obj['station'] || '',
-          model: obj.model || obj.Model || obj['model'] || '',
-          plate: obj.plate || obj.Plate || obj['plate'] || obj.number || '',
-          status: obj.status || obj.Status || obj['status'] || ''
-        };
-      });
+      // handle array of objects
+      if (rows && Array.isArray(rows)) {
+        return rows.map(obj => {
+          return {
+            city: String(obj.city ?? obj.City ?? obj.city_name ?? '').trim(),
+            station: String(obj.station ?? obj.Station ?? obj.station_name ?? '').trim(),
+            model: String(obj.model ?? obj.Model ?? obj.car_model ?? '').trim(),
+            plate: String(obj.plate ?? obj.Plate ?? obj.number ?? obj.Number ?? '').trim(),
+            status: String(obj.status ?? obj.Status ?? obj.state ?? '').trim(),
+          };
+        });
+      }
+      return [];
     } catch (err) {
       console.error('fetch error', err);
       return [];
@@ -69,7 +124,11 @@
       const city = String(item.city || '').trim();
       const slug = AREA_MAP[city];
       if (slug) {
-        cats[slug].push({ name: `${item.station} - ${item.model} - ${item.plate}`, schedules: [] });
+        const station = String(item.station || '').trim();
+        const model = String(item.model || '').trim();
+        // plate/number の揺れを吸収
+        const plate = String(item.plate || item.number || '').trim();
+        cats[slug].push({ name: `${station} - ${model} - ${plate}`, schedules: [] });
       }
     });
     return cats;
